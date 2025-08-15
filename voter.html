@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DeshKaVote - Elections & Candidates</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+{% load static %}
+<link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body class="voter-page">
+
+<header>
+  DeshKaVote - Elections & Candidates
+</header>
+
+<main class="container">
+
+  <section aria-labelledby="elections-title" class="my-4 p-4 border rounded bg-light">
+    <h2 id="elections-title" class="pb-2 mb-4 border-bottom border-warning">Upcoming & Past Elections</h2>
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped" aria-describedby="elections-desc">
+        <caption id="elections-desc" class="sr-only">List of elections with their dates and status</caption>
+        <thead>
+          <tr>
+            <th scope="col">Election Name</th>
+            <th scope="col">State</th>
+            <th scope="col">Type</th>
+            <th scope="col">Date</th>
+            <th scope="col">Status</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Delhi State Assembly Election 2024</td>
+            <td>Delhi</td>
+            <td>State Assembly</td>
+            <td>2024-02-15</td>
+            <td><span class="status-badge status-completed" aria-label="Completed">Completed</span></td>
+            <td><button class="btn btn-secondary btn-sm" disabled aria-disabled="true" aria-label="Voting closed">Vote</button></td>
+          </tr>
+          <tr>
+            <td>Bihar Panchayat Election 2024</td>
+            <td>Bihar</td>
+            <td>Panchayat</td>
+            <td>2024-08-20</td>
+            <td><span class="status-badge status-upcoming" aria-label="Upcoming">Upcoming</span></td>
+            <td><button class="btn btn-secondary btn-sm" disabled aria-disabled="true" aria-label="Voting will open on August 20, 2024">Vote</button></td>
+          </tr>
+          <tr>
+            <td>Uttar Pradesh Municipal Election 2024</td>
+            <td>Uttar Pradesh</td>
+            <td>Municipal</td>
+            <td>2024-06-10</td>
+            <td><span class="status-badge status-active" aria-label="Active">Active</span></td>
+            <td><button class="btn btn-primary btn-sm" aria-label="Vote in Uttar Pradesh Municipal Election 2024">Vote</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="candidates-title" class="my-4 p-4 border rounded bg-light">
+    <h2 id="candidates-title" class="pb-2 mb-4 border-bottom border-warning">Candidates for Uttar Pradesh Municipal Election 2024</h2>
+
+    <div class="table-responsive">
+      <table class="candidate-table table table-bordered table-striped" role="grid" aria-describedby="candidate-desc">
+        <caption id="candidate-desc" class="sr-only">Candidates contesting Uttar Pradesh Municipal Election 2024 with party and constituency</caption>
+        <thead>
+          <tr>
+            <th scope="col">Candidate Name</th>
+            <th scope="col">Party</th>
+            <th scope="col">Ward</th>
+            <th scope="col">Symbol</th>
+            <th scope="col">Education</th>
+            <th scope="col">Vote</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ajay Kumar</td>
+            <td><span class="party-badge party-bjp" aria-label="BJP Party">BJP</span></td>
+            <td>Ward 12</td>
+            <td>Lotus</td>
+            <td>B.A. Political Science</td>
+            <td><button class="btn btn-primary btn-sm" aria-label="Vote for Ajay Kumar from BJP">Select</button></td>
+          </tr>
+          <tr>
+            <td>Neha Singh</td>
+            <td><span class="party-badge party-congress" aria-label="Congress Party">Congress</span></td>
+            <td>Ward 12</td>
+            <td>Hand</td>
+            <td>M.Sc. Public Administration</td>
+            <td><button class="btn btn-primary btn-sm" aria-label="Vote for Neha Singh from Congress">Select</button></td>
+          </tr>
+          <tr>
+            <td>Ramesh Verma</td>
+            <td><span class="party-badge party-aap" aria-label="AAP Party">AAP</span></td>
+            <td>Ward 12</td>
+            <td>Broom</td>
+            <td>Diploma in Social Work</td>
+            <td><button class="btn btn-primary btn-sm" aria-label="Vote for Ramesh Verma from AAP">Select</button></td>
+          </tr>
+          <tr>
+            <td>Kiran Devi</td>
+            <td><span class="party-badge party-left" aria-label="Left Parties">Left Front</span></td>
+            <td>Ward 12</td>
+            <td>Sickle and Hammer</td>
+            <td>Ph.D. Economics</td>
+            <td><button class="btn btn-primary btn-sm" aria-label="Vote for Kiran Devi from Left Front">Select</button></td>
+          </tr>
+          <tr>
+            <td>Suraj Patel</td>
+            <td><span class="party-badge party-other" aria-label="Independent / Other">Independent</span></td>
+            <td>Ward 12</td>
+            <td>Star</td>
+            <td>High School Graduate</td>
+            <td><button class="btn btn-primary btn-sm" aria-label="Vote for Suraj Patel Independent">Select</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="important-notes-title" class="my-4 p-4 border rounded bg-light">
+    <h2 id="important-notes-title" class="pb-2 mb-4 border-bottom border-warning">Important Notes</h2>
+    <ul class="list-unstyled">
+      <li>Voting is open only to registered voters with a valid Voter ID.</li>
+      <li>One voter, one vote. Multiple voting is illegal and punishable by law.</li>
+      <li>Polling stations follow strict COVID-19 protocols for voter safety.</li>
+      <li>Ensure your name and details are correct in the official voter list.</li>
+      <li>Contact your local Election Commission office for assistance and queries.</li>
+    </ul>
+  </section>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
