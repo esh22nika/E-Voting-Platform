@@ -1,0 +1,25 @@
+{% load static %} 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Contact - DeshKaVote</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+  <nav class="p-3 border-bottom mb-4 bg-light">
+    <a href="{% url 'landing' %}" class="me-3">Home</a>
+    <a href="{% url 'login' %}">Login</a>
+  </nav>
+  <main class="container text-center py-5">
+    <h1 class="display-4 text-warning">Contact Page</h1>
+    <p class="lead">This page is under development. Please check back soon!</p>
+  </main>
+  <footer class="text-center bg-success text-white py-3 mt-5">
+    &copy; 2025 DeshKaVote. All rights reserved.
+  </footer>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
