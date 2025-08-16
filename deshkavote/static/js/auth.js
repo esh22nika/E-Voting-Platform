@@ -112,9 +112,9 @@ document.addEventListener('DOMContentLoaded', function() {
     e.preventDefault();
     console.log('Login form submitted');
     
-    // Get form elements - check both possible IDs for login form
-    let voterIdInput = signinForm.querySelector('#voterId') || signinForm.querySelector('[name="voter_id"]') || signinForm.querySelector('input[type="text"]');
-    let passwordInput = signinForm.querySelector('#password') || signinForm.querySelector('[name="password"]') || signinForm.querySelector('input[type="password"]');
+    // Get form elements with correct IDs
+    let voterIdInput = document.getElementById('voterId');
+    let passwordInput = document.getElementById('password');
     
     console.log('Found form elements:', {
       voterId: !!voterIdInput,
@@ -161,23 +161,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Create form data for submission
     const loginData = {
-    voterId: voterId.toUpperCase(),
-    password: password
+      voterId: voterId.toUpperCase(),
+      password: password
     };
 
     console.log('Sending login request...');
 
     // Send login request to the backend with enhanced error handling
     fetch('/login_user/', {
-    method: 'POST',
-    headers: {
+      method: 'POST',
+      headers: {
         'Content-Type': 'application/json',
         'X-CSRFToken': getCookie('csrftoken'),
         'X-Requested-With': 'XMLHttpRequest'
-    },
-    body: JSON.stringify(loginData),
-    credentials: 'same-origin'
-   })
+      },
+      body: JSON.stringify(loginData),
+      credentials: 'same-origin'
+    })
     .then(response => {
       console.log('Response status:', response.status);
       console.log('Response ok:', response.ok);
@@ -310,10 +310,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Real-time validation setup
+  // Real-time validation setup - Updated field IDs
   function setupRealTimeValidation() {
     const validations = [
-      { id: 'firstName', test: val => /^[A-Za-z]{2,}$/.test(val), msg: 'First name must be at least 6 letters long and contain only alphabets.' },
+      { id: 'firstName', test: val => /^[A-Za-z]{2,}$/.test(val), msg: 'First name must be at least 2 letters long and contain only alphabets.' },
       { id: 'lastName', test: val => val.trim() !== '', msg: 'Last name cannot be empty.' },
       { id: 'email', test: isValidEmail, msg: 'Enter a valid email (e.g. user@example.com).' },
       { id: 'mobile', test: val => /^[6-9]\d{9}$/.test(val), msg: 'Mobile must be 10 digits and start with 6/7/8/9.' },
@@ -331,12 +331,12 @@ document.addEventListener('DOMContentLoaded', function() {
       { id: 'state', test: val => val !== '', msg: 'Please select a state.' },
       { id: 'pincode', test: val => /^[1-9][0-9]{5}$/.test(val), msg: 'Pincode must be 6 digits starting with non-zero.' },
       { id: 'placeOfBirth', test: val => val.trim() !== '', msg: 'Place of birth cannot be empty.' },
-      { id: 'voterId', test: val => /^[A-Z]{3}[0-9]{7}$/.test(val), msg: 'Voter ID must be in format: 3 letters followed by 7 digits.' },
+      { id: 'registerVoterId', test: val => /^[A-Z]{3}[0-9]{7}$/.test(val), msg: 'Voter ID must be in format: 3 letters followed by 7 digits.' },
       { id: 'aadharNumber', test: val => /^\d{12}$/.test(val), msg: 'Aadhar must be a 12-digit number.' },
       { id: 'panNumber', test: val => /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(val), msg: 'PAN must be in format: 5 letters, 4 digits, 1 letter.' },
-      { id: 'password', test: val => val.length >= 6, msg: 'Password must be at least 6 characters.' },
+      { id: 'registerPassword', test: val => val.length >= 6, msg: 'Password must be at least 6 characters.' },
       { id: 'confirmPassword', test: val => {
-        const password = document.getElementById('password').value;
+        const password = document.getElementById('registerPassword').value;
         return val === password && val.length >= 6;
       }, msg: 'Passwords must match and be at least 6 characters.' }
     ];
@@ -354,14 +354,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // Validate on input for certain fields
-        if (['password', 'confirmPassword'].includes(id)) {
+        if (['registerPassword', 'confirmPassword'].includes(id)) {
           input.addEventListener('input', function() {
             if (this.value.trim() !== '') {
               const isValid = test(this.value.trim());
               markField(this, isValid, msg);
               
               // Also validate confirm password when password changes
-              if (id === 'password') {
+              if (id === 'registerPassword') {
                 const confirmPasswordInput = document.getElementById('confirmPassword');
                 if (confirmPasswordInput && confirmPasswordInput.value.trim() !== '') {
                   const confirmValidation = validations.find(v => v.id === 'confirmPassword');
@@ -435,10 +435,31 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Create FormData object with all form fields
       const formData = new FormData();
-      validations.forEach(({ id }) => {
-        const input = document.getElementById(id);
+      
+      // Map form fields with correct field names for backend
+      const fieldMapping = {
+        'firstName': 'firstName',
+        'lastName': 'lastName',
+        'email': 'email',
+        'mobile': 'mobile',
+        'dob': 'dob',
+        'gender': 'gender',
+        'parentSpouseName': 'parentSpouseName',
+        'streetAddress': 'streetAddress',
+        'city': 'city',
+        'state': 'state',
+        'pincode': 'pincode',
+        'placeOfBirth': 'placeOfBirth',
+        'registerVoterId': 'voterId',
+        'aadharNumber': 'aadharNumber',
+        'panNumber': 'panNumber',
+        'registerPassword': 'password'
+      };
+
+      Object.keys(fieldMapping).forEach(inputId => {
+        const input = document.getElementById(inputId);
         if (input) {
-          formData.append(id, input.value.trim());
+          formData.append(fieldMapping[inputId], input.value.trim());
         }
       });
 

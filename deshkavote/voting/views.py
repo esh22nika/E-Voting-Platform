@@ -1,4 +1,4 @@
-from django.shortcuts import render,redirect
+from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -9,8 +9,12 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import datetime
 import json
+import logging
 
 from .models import CustomUser, Voter, Election, Candidate, Vote
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 def landing_page(request):
     """Landing page view"""
@@ -107,6 +111,7 @@ def register_voter(request):
             })
             
         except Exception as e:
+            logger.error(f"Registration error: {str(e)}")
             return JsonResponse({
                 'success': False, 
                 'message': f'Registration failed: {str(e)}'
@@ -125,26 +130,52 @@ def login_user(request):
                 voter_id = data.get('voterId')
                 password = data.get('password')
             else:
-                # Handle FormData
-                voter_id = request.POST.get('voter_id')
+                # Handle FormData - check multiple possible field names
+                voter_id = (request.POST.get('voter_id') or 
+                           request.POST.get('voterId') or 
+                           request.POST.get('username'))
                 password = request.POST.get('password')
+            
+            logger.info(f"Login attempt for voter ID: {voter_id}")
+            
+            if not voter_id or not password:
+                return JsonResponse({
+                    'success': False, 
+                    'message': 'Voter ID and password are required'
+                })
             
             user = authenticate(request, username=voter_id, password=password)
             
-            if user is not None and user.role == 'voter':
-                login(request, user)
-                return JsonResponse({
-                    'success': True, 
-                    'message': 'Login successful',
-                    'redirect_url': '/voter/'
-                })
+            if user is not None:
+                if user.role == 'voter':
+                    login(request, user)
+                    logger.info(f"Successful login for voter: {voter_id}")
+                    return JsonResponse({
+                        'success': True, 
+                        'message': 'Login successful',
+                        'redirect_url': '/voter/'
+                    })
+                else:
+                    logger.warning(f"Non-voter attempted login: {voter_id}")
+                    return JsonResponse({
+                        'success': False, 
+                        'message': 'Invalid Voter ID or password'
+                    })
             else:
+                logger.warning(f"Failed login attempt for voter: {voter_id}")
                 return JsonResponse({
                     'success': False, 
                     'message': 'Invalid Voter ID or password'
                 })
                 
+        except json.JSONDecodeError:
+            logger.error("JSON decode error in login")
+            return JsonResponse({
+                'success': False, 
+                'message': 'Invalid JSON data'
+            })
         except Exception as e:
+            logger.error(f"Login error: {str(e)}")
             return JsonResponse({
                 'success': False, 
                 'message': f'Login failed: {str(e)}'

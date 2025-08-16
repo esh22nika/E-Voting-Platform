@@ -23,13 +23,13 @@
   <!-- SIGN IN FORM -->
   <form id="signinForm" novalidate>
     <div class="mb-3 text-start">
-      <label for="signinEmail" class="form-label fw-bold">Voter ID *</label>
-      <input type="text" id="signinEmail" class="form-control" placeholder="Enter your Voter ID" required />
+      <label for="voterId" class="form-label fw-bold">Voter ID *</label>
+      <input type="text" id="voterId" name="voter_id" class="form-control" placeholder="Enter your Voter ID" required />
     </div>
 
     <div class="mb-3 text-start">
-      <label for="signinPassword" class="form-label fw-bold">Password *</label>
-      <input type="password" id="signinPassword" class="form-control" placeholder="•••••••••••••••" required />
+      <label for="password" class="form-label fw-bold">Password *</label>
+      <input type="password" id="password" name="password" class="form-control" placeholder="•••••••••••••••" required />
     </div>
 
     <div class="forgot-password text-end mb-4" tabindex="0" role="button" aria-pressed="false" onclick="alert('Password reset functionality coming soon.')">Forgot Password?</div>
@@ -141,8 +141,8 @@
     </div>
 
     <div class="mb-3 text-start">
-      <label for="voterId" class="form-label fw-bold">Voter ID *</label>
-      <input type="text" id="voterId" class="form-control" placeholder="Enter your Voter ID" required />
+      <label for="registerVoterId" class="form-label fw-bold">Voter ID *</label>
+      <input type="text" id="registerVoterId" class="form-control" placeholder="Enter your Voter ID" required />
     </div>
 
     <div class="row">
@@ -157,8 +157,8 @@
     </div>
 
     <div class="mb-3 text-start">
-      <label for="password" class="form-label fw-bold">Password *</label>
-      <input type="password" id="password" class="form-control" placeholder="Enter password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*]).{8,}" title="Must contain at least one number, one uppercase and lowercase letter, one special character, and at least 8 or more characters" />
+      <label for="registerPassword" class="form-label fw-bold">Password *</label>
+      <input type="password" id="registerPassword" class="form-control" placeholder="Enter password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*]).{8,}" title="Must contain at least one number, one uppercase and lowercase letter, one special character, and at least 8 or more characters" />
     </div>
 
     <div class="mb-3 text-start">
