@@ -1,4 +1,5 @@
-{% load static %} 
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,8 +12,8 @@
 <body>
     <!-- Navigation -->
     <nav class="p-3 border-bottom mb-4 bg-light">
-        <a href="landing.html" class="me-3">Home</a>
-        <a href="auth.html">Voter Login</a>
+        <a href="{% url 'landing' %}" class="me-3">Home</a>
+        <a href="{% url 'login' %}">Voter Login</a>
     </nav>
 
     <header class="landing-page-header">
@@ -28,7 +29,11 @@
                         🛡️ Admin Login
                     </h3>
                     
+                    <!-- Display messages -->
+                    <div id="messageDiv" style="display: none;" class="alert"></div>
+                    
                     <form id="adminLoginForm">
+                        {% csrf_token %}
                         <div class="mb-3">
                             <label for="username" class="form-label fw-bold">Admin Username</label>
                             <input type="text" 
@@ -65,7 +70,7 @@
                             </small>
                         </div>
                         
-                        <a href="landing.html" class="text-muted text-decoration-none">
+                        <a href="{% url 'landing' %}" class="text-muted text-decoration-none">
                             ← Back to Home
                         </a>
                     </div>
@@ -81,21 +86,63 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
+        document.getElementById('adminLoginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            
             const submitBtn = this.querySelector('button[type="submit"]');
             const loginText = document.getElementById('loginText');
             const loadingSpinner = document.getElementById('loadingSpinner');
+            const messageDiv = document.getElementById('messageDiv');
             
             // Show loading state
             loginText.textContent = 'Authenticating...';
             loadingSpinner.classList.remove('d-none');
             submitBtn.disabled = true;
+            messageDiv.style.display = 'none';
             
-            // For now, just redirect after 2 seconds (will be replaced with actual auth)
-            setTimeout(() => {
-                window.location.href = 'admin.html';
-            }, 2000);
+            // Get form data
+            const formData = new FormData(this);
+            const data = {
+                username: formData.get('username'),
+                password: formData.get('password')
+            };
+            
+            try {
+                const response = await fetch('/admin-auth/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    messageDiv.className = 'alert alert-success';
+                    messageDiv.textContent = result.message;
+                    messageDiv.style.display = 'block';
+                    
+                    // Redirect after success
+                    setTimeout(() => {
+                        window.location.href = result.redirect_url;
+                    }, 1000);
+                } else {
+                    messageDiv.className = 'alert alert-danger';
+                    messageDiv.textContent = result.message;
+                    messageDiv.style.display = 'block';
+                }
+            } catch (error) {
+                messageDiv.className = 'alert alert-danger';
+                messageDiv.textContent = 'Login failed. Please try again.';
+                messageDiv.style.display = 'block';
+            }
+            
+            // Reset button state
+            loginText.textContent = 'Login as Admin';
+            loadingSpinner.classList.add('d-none');
+            submitBtn.disabled = false;
         });
     </script>
 </body>
