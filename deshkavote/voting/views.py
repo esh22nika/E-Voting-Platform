@@ -25,7 +25,29 @@ def register_voter(request):
     """Handle voter registration"""
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
+            # Handle both FormData and JSON
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+            else:
+                # Handle FormData
+                data = {
+                    'firstName': request.POST.get('firstName'),
+                    'lastName': request.POST.get('lastName'),
+                    'email': request.POST.get('email'),
+                    'mobile': request.POST.get('mobile'),
+                    'dob': request.POST.get('dob'),
+                    'gender': request.POST.get('gender'),
+                    'parentSpouseName': request.POST.get('parentSpouseName'),
+                    'streetAddress': request.POST.get('streetAddress'),
+                    'city': request.POST.get('city'),
+                    'state': request.POST.get('state'),
+                    'pincode': request.POST.get('pincode'),
+                    'placeOfBirth': request.POST.get('placeOfBirth'),
+                    'voterId': request.POST.get('voterId'),
+                    'aadharNumber': request.POST.get('aadharNumber'),
+                    'panNumber': request.POST.get('panNumber'),
+                    'password': request.POST.get('password'),
+                }
             
             # Check if voter ID already exists
             if Voter.objects.filter(voter_id=data['voterId']).exists():
@@ -97,9 +119,15 @@ def login_user(request):
     """Handle voter login"""
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
-            voter_id = data['voterId']
-            password = data['password']
+            # Handle both FormData and JSON
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+                voter_id = data.get('voterId')
+                password = data.get('password')
+            else:
+                # Handle FormData
+                voter_id = request.POST.get('voter_id')
+                password = request.POST.get('password')
             
             user = authenticate(request, username=voter_id, password=password)
             

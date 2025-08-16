@@ -160,22 +160,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Create form data for submission
-    const formData = new FormData();
-    formData.append('voter_id', voterId.toUpperCase());
-    formData.append('password', password);
+    const loginData = {
+    voterId: voterId.toUpperCase(),
+    password: password
+    };
 
     console.log('Sending login request...');
 
     // Send login request to the backend with enhanced error handling
-    fetch('/do_login/', {
-      method: 'POST',
-      body: formData,
-      credentials: 'same-origin',
-      headers: {
+    fetch('/login_user/', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
         'X-CSRFToken': getCookie('csrftoken'),
         'X-Requested-With': 'XMLHttpRequest'
-      },
-    })
+    },
+    body: JSON.stringify(loginData),
+    credentials: 'same-origin'
+   })
     .then(response => {
       console.log('Response status:', response.status);
       console.log('Response ok:', response.ok);
