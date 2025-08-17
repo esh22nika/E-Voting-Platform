@@ -1,7 +1,7 @@
 from django.db import models
-
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
+from django.conf import settings
 
 class CustomUser(AbstractUser):
     USER_ROLES = (
@@ -11,12 +11,20 @@ class CustomUser(AbstractUser):
     role = models.CharField(max_length=10, choices=USER_ROLES, default='voter')
     mobile = models.CharField(max_length=10, validators=[RegexValidator(r'^\d{10}$')])
     is_verified = models.BooleanField(default=False)
+    # Changed default to False for approval workflow
+    is_active = models.BooleanField(default=False)
 
 class Voter(models.Model):
     GENDER_CHOICES = (
         ('Male', 'Male'),
         ('Female', 'Female'),
         ('Other', 'Other'),
+    )
+    
+    APPROVAL_STATUS_CHOICES = (
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
     )
     
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
@@ -36,6 +44,22 @@ class Voter(models.Model):
     aadhar_number = models.CharField(max_length=12)
     pan_number = models.CharField(max_length=10)
     
+    # Approval system fields
+    approval_status = models.CharField(
+        max_length=10, 
+        choices=APPROVAL_STATUS_CHOICES, 
+        default='pending'
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_voters'
+    )
+    approval_date = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(null=True, blank=True)
+    
     # Verification status
     aadhar_verified = models.BooleanField(default=False)
     pan_verified = models.BooleanField(default=False)
@@ -43,6 +67,14 @@ class Voter(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
+    
+    @property
+    def is_fully_verified(self):
+        return self.aadhar_verified and self.pan_verified and self.voter_id_verified
     
     def __str__(self):
         return f"{self.voter_id} - {self.first_name} {self.last_name}"
@@ -69,6 +101,7 @@ class Election(models.Model):
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='upcoming')
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):

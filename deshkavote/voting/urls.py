@@ -15,4 +15,7 @@ urlpatterns = [
     path('results/', views.results_page, name='results'),
     path('contact/', views.contact_page, name='contact'),
     path('logout/', views.logout_user, name='logout'),
+    # New approval endpoints
+    path('api/approve-voter/', views.approve_voter, name='approve_voter'),
+    path('api/reject-voter/', views.reject_voter, name='reject_voter'),
 ]

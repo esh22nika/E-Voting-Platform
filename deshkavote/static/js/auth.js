@@ -62,23 +62,80 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // Message display functions for approval system
+  function showMessage(message, type = 'success', isPending = false) {
+    let existingAlert = document.querySelector('.auth-alert');
+    if (existingAlert) {
+      existingAlert.remove();
+    }
+
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show auth-alert`;
+    alertDiv.setAttribute('role', 'alert');
+    
+    let iconClass = type === 'success' ? 'check-circle' : (type === 'danger' ? 'exclamation-triangle' : 'info-circle');
+    let icon = `<i class="bi bi-${iconClass} me-2"></i>`;
+    
+    if (isPending) {
+      alertDiv.innerHTML = `
+        ${icon}
+        <strong>Login Successful!</strong><br>
+        ${message}<br>
+        <small class="text-muted">You will be redirected once your account is approved.</small>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      `;
+    } else {
+      alertDiv.innerHTML = `
+        ${icon}${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      `;
+    }
+
+    // Insert the alert at the top of the auth card
+    const authCard = document.querySelector('.auth-card') || document.querySelector('.card') || document.body;
+    const welcomeText = authCard.querySelector('.welcome-text') || authCard.querySelector('.card-header') || authCard.firstChild;
+    if (welcomeText) {
+      authCard.insertBefore(alertDiv, welcomeText);
+    } else {
+      authCard.insertBefore(alertDiv, authCard.firstChild);
+    }
+
+    // Auto-hide success messages after 5 seconds
+    if (type === 'success' && !isPending) {
+      setTimeout(() => {
+        if (alertDiv && alertDiv.parentNode) {
+          alertDiv.remove();
+        }
+      }, 5000);
+    }
+  }
+
+  function hideMessage() {
+    const existingAlert = document.querySelector('.auth-alert');
+    if (existingAlert) {
+      existingAlert.remove();
+    }
+  }
+
   function switchForm(form) {
+    hideMessage(); // Clear any messages when switching forms
+    
     if (form === 'signin') {
       signinForm.style.display = 'block';
       registerForm.style.display = 'none';
       tabSignIn.classList.add('active');
       tabRegister.classList.remove('active');
-      formTitle.textContent = 'Welcome';
+      formTitle.textContent = 'Welcome Back';
       formSubtitle.textContent = 'Welcome back, please login to your account.';
-      toggleText.textContent = "Don't have an account? Create an Account";
+      toggleText.innerHTML = 'Don\'t have an account? <span style="color: #007bff; cursor: pointer;">Create an Account</span>';
     } else {
       signinForm.style.display = 'none';
       registerForm.style.display = 'block';
       tabSignIn.classList.remove('active');
       tabRegister.classList.add('active');
       formTitle.textContent = 'Create Account';
-      formSubtitle.textContent = 'Please fill the form to create an account.';
-      toggleText.textContent = "Already have an account? Sign In";
+      formSubtitle.textContent = 'Join DeshKaVote and participate in democratic elections.';
+      toggleText.innerHTML = 'Already have an account? <span style="color: #007bff; cursor: pointer;">Sign In</span>';
     }
   }
 
@@ -104,17 +161,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Force initial state
   console.log('Setting initial state to signin');
-  signinForm.style.display = 'block';
-  registerForm.style.display = 'none';
+  switchForm('signin');
 
-  // Handle login form submission with enhanced error handling
+  // Handle login form submission with enhanced error handling and approval system
   signinForm.addEventListener('submit', function(e) {
     e.preventDefault();
     console.log('Login form submitted');
+    hideMessage();
     
-    // Get form elements with correct IDs
-    let voterIdInput = document.getElementById('voterId');
-    let passwordInput = document.getElementById('password');
+    // Get form elements - check both possible IDs for login form
+    let voterIdInput = signinForm.querySelector('#voterId') || signinForm.querySelector('[name="voter_id"]') || signinForm.querySelector('input[type="text"]');
+    let passwordInput = signinForm.querySelector('#password') || signinForm.querySelector('[name="password"]') || signinForm.querySelector('input[type="password"]');
     
     console.log('Found form elements:', {
       voterId: !!voterIdInput,
@@ -123,7 +180,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (!voterIdInput || !passwordInput) {
       console.error('Could not find login form inputs');
-      alert('Form elements not found. Please refresh the page and try again.');
+      showMessage('Form elements not found. Please refresh the page and try again.', 'danger');
       return;
     }
 
@@ -137,13 +194,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Basic validation
     if (!voterId || !password) {
-      alert('Please fill in all fields');
+      showMessage('Please fill in all fields', 'danger');
       return;
     }
 
     // Validate Voter ID format (3 letters followed by 7 digits)
     if (!/^[A-Z]{3}[0-9]{7}$/.test(voterId.toUpperCase())) {
-      alert('Please enter a valid Voter ID (3 letters followed by 7 digits)');
+      showMessage('Please enter a valid Voter ID (3 letters followed by 7 digits)', 'danger');
       return;
     }
 
@@ -153,42 +210,33 @@ document.addEventListener('DOMContentLoaded', function() {
     if (submitButton) {
       submitButton.disabled = true;
       if (submitButton.textContent !== undefined) {
-        submitButton.textContent = 'Logging in...';
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Signing in...';
       } else {
         submitButton.value = 'Logging in...';
       }
     }
 
-    // Create form data for submission
-    const loginData = {
+    // Prepare data for JSON submission (supporting approval system)
+    const data = {
       voterId: voterId.toUpperCase(),
       password: password
     };
 
     console.log('Sending login request...');
 
-    // Send login request to the backend with enhanced error handling
+    // Send login request with approval system support
     fetch('/login_user/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken'),
-        'X-Requested-With': 'XMLHttpRequest'
+        'X-CSRFToken': getCookie('csrftoken')
       },
-      body: JSON.stringify(loginData),
-      credentials: 'same-origin'
+      body: JSON.stringify(data)
     })
     .then(response => {
       console.log('Response status:', response.status);
       console.log('Response ok:', response.ok);
-      
-      // Handle different response types
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        return response.json().then(data => ({ data, status: response.status, ok: response.ok }));
-      } else {
-        return response.text().then(text => ({ text, status: response.status, ok: response.ok }));
-      }
+      return response.json();
     })
     .then(result => {
       console.log('Response result:', result);
@@ -203,38 +251,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
 
-      if (result.ok) {
-        if (result.data) {
-          // JSON response
-          if (result.data.success) {
-            console.log('Login successful, redirecting...');
-            // Try multiple redirect methods
-            setTimeout(() => {
-              window.location.href = '/voter/';
-            }, 100);
-          } else {
-            alert(result.data.message || 'Login failed. Please check your credentials.');
-          }
-        } else if (result.text) {
-          // HTML response - might be a redirect or success page
-          if (result.text.includes('voter') || result.text.includes('dashboard') || result.status === 200) {
-            console.log('Login appears successful, redirecting...');
-            window.location.href = '/voter/';
-          } else {
-            alert('Login failed. Please check your credentials.');
-          }
+      if (result.success) {
+        if (result.redirect_url) {
+          showMessage('Login successful! Redirecting...', 'success');
+          setTimeout(() => {
+            window.location.href = result.redirect_url;
+          }, 1000);
         }
       } else {
-        // Handle HTTP error status codes
-        if (result.status === 403) {
-          alert('Access denied. Please check your credentials.');
-        } else if (result.status === 404) {
-          alert('Login service not found. Please contact support.');
-        } else if (result.status === 500) {
-          alert('Server error. Please try again later.');
+        // Check if it's a pending approval case
+        if (result.pending_approval) {
+          showMessage(result.message, 'info', true);
         } else {
-          const errorMessage = result.data ? (result.data.message || 'Login failed') : 'Login failed';
-          alert(errorMessage + '. Please check your credentials.');
+          showMessage(result.message, 'danger');
         }
       }
     })
@@ -253,9 +282,9 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Check if it's a network error or server error
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        alert('Network error. Please check your internet connection and try again.');
+        showMessage('Network error. Please check your internet connection and try again.', 'danger');
       } else {
-        alert('Login failed. Please try again.');
+        showMessage('Login failed. Please try again.', 'danger');
       }
     });
   });
@@ -310,10 +339,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Real-time validation setup - Updated field IDs
+  // Real-time validation setup
   function setupRealTimeValidation() {
     const validations = [
-      { id: 'firstName', test: val => /^[A-Za-z]{2,}$/.test(val), msg: 'First name must be at least 2 letters long and contain only alphabets.' },
+      { id: 'firstName', test: val => /^[A-Za-z]{2,}$/.test(val), msg: 'First name must be at least 6 letters long and contain only alphabets.' },
       { id: 'lastName', test: val => val.trim() !== '', msg: 'Last name cannot be empty.' },
       { id: 'email', test: isValidEmail, msg: 'Enter a valid email (e.g. user@example.com).' },
       { id: 'mobile', test: val => /^[6-9]\d{9}$/.test(val), msg: 'Mobile must be 10 digits and start with 6/7/8/9.' },
@@ -417,6 +446,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   registerForm.addEventListener('submit', function (e) {
     e.preventDefault();
+    hideMessage();
     let isFormValid = true;
 
     // Validate all fields one final time
@@ -433,63 +463,52 @@ document.addEventListener('DOMContentLoaded', function() {
       // All fields are valid, proceed with registration
       console.log('Form is valid, submitting...');
       
-      // Create FormData object with all form fields
-      const formData = new FormData();
-      
-      // Map form fields with correct field names for backend
-      const fieldMapping = {
-        'firstName': 'firstName',
-        'lastName': 'lastName',
-        'email': 'email',
-        'mobile': 'mobile',
-        'dob': 'dob',
-        'gender': 'gender',
-        'parentSpouseName': 'parentSpouseName',
-        'streetAddress': 'streetAddress',
-        'city': 'city',
-        'state': 'state',
-        'pincode': 'pincode',
-        'placeOfBirth': 'placeOfBirth',
-        'registerVoterId': 'voterId',
-        'aadharNumber': 'aadharNumber',
-        'panNumber': 'panNumber',
-        'registerPassword': 'password'
-      };
-
-      Object.keys(fieldMapping).forEach(inputId => {
-        const input = document.getElementById(inputId);
-        if (input) {
-          formData.append(fieldMapping[inputId], input.value.trim());
-        }
-      });
-
       // Show loading state
       const submitButton = registerForm.querySelector('button[type="submit"]') || registerForm.querySelector('input[type="submit"]');
       const originalButtonText = submitButton ? submitButton.textContent || submitButton.value : '';
       if (submitButton) {
         submitButton.disabled = true;
         if (submitButton.textContent !== undefined) {
-          submitButton.textContent = 'Registering...';
+          submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Registering...';
         } else {
           submitButton.value = 'Registering...';
         }
       }
 
-      // Send registration request to the backend
+      // Collect form data for JSON submission (supporting approval system)
+      const data = {
+        firstName: document.getElementById('firstName').value,
+        lastName: document.getElementById('lastName').value,
+        email: document.getElementById('email').value,
+        mobile: document.getElementById('mobile').value,
+        dob: document.getElementById('dob').value,
+        gender: document.getElementById('gender').value,
+        parentSpouseName: document.getElementById('parentSpouseName').value,
+        streetAddress: document.getElementById('streetAddress').value,
+        city: document.getElementById('city').value,
+        state: document.getElementById('state').value,
+        pincode: document.getElementById('pincode').value,
+        placeOfBirth: document.getElementById('placeOfBirth').value,
+        voterId: document.getElementById('registerVoterId').value,
+        aadharNumber: document.getElementById('aadharNumber').value,
+        panNumber: document.getElementById('panNumber').value,
+        password: document.getElementById('registerPassword').value
+      };
+
+      // Send registration request to the backend with approval system support
       fetch('/register/', {
         method: 'POST',
-        body: formData,
-        credentials: 'same-origin',
         headers: {
-          'X-CSRFToken': getCookie('csrftoken'),
-          'X-Requested-With': 'XMLHttpRequest'
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')
         },
+        body: JSON.stringify(data)
       })
       .then(response => {
         console.log('Registration response status:', response.status);
         return response.json();
       })
-      .then(data => {
+      .then(result => {
         // Reset button state
         if (submitButton) {
           submitButton.disabled = false;
@@ -500,12 +519,16 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         }
 
-        if (data.success) {
-          alert('Registration successful! Please login with your credentials.');
-          // Switch to login form
-          switchForm('signin');
+        if (result.success) {
+          showMessage(result.message, 'success');
+          // Switch to sign in form after successful registration
+          setTimeout(() => {
+            switchForm('signin');
+            // Clear the registration form
+            registerForm.reset();
+          }, 2000);
         } else {
-          alert(data.message || 'Registration failed. Please try again.');
+          showMessage(result.message, 'danger');
         }
       })
       .catch(error => {
@@ -519,7 +542,7 @@ document.addEventListener('DOMContentLoaded', function() {
             submitButton.value = originalButtonText;
           }
         }
-        alert('Registration failed. Please try again.');
+        showMessage('Registration failed. Please try again.', 'danger');
       });
     } else {
       // Scroll to first invalid field

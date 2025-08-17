@@ -11,67 +11,172 @@
 <body>
 
 <nav class="p-3 border-bottom mb-4 bg-light">
-  <a href="landing_page.html" class="me-3">Home</a>
-  <a href="admin_login.html">Login</a>
-  <a href="landing_page.html" class="me-3">Logout</a>
+  <a href="{% url 'landing' %}" class="me-3">Home</a>
+  <a href="{% url 'admin_login' %}">Login</a>
+  <a href="{% url 'logout' %}" class="me-3">Logout</a>
 </nav>
 
 <header class="text-center my-4">
-  <img src="static/logo.png" alt="DeshKaVote Logo" class="rounded-circle mb-2" style="width: 100px; height: 100px; object-fit: cover; border: none;">
+  <img src="{% static 'images/logo.png' %}" alt="DeshKaVote Logo" class="rounded-circle mb-2" style="width: 100px; height: 100px; object-fit: cover; border: none;">
   <div>DeshKaVote - Admin Interface</div>
+  <div class="text-muted">Welcome, {{ admin_username }}</div>
 </header>
 
 <main class="container">
+  
+  <!-- Display success/error messages -->
+  <div id="messageContainer" style="display: none;" class="alert alert-dismissible fade show">
+    <span id="messageText"></span>
+    <button type="button" class="btn-close" onclick="hideMessage()"></button>
+  </div>
 
-  <!-- Voter Verification -->
-  <section aria-labelledby="voter-verify-title" class="my-4 p-4 border rounded">
-    <h2 id="voter-verify-title" class="pb-2 mb-4 border-bottom border-warning">Verify Voters</h2>
+  <!-- Voter Approval Section -->
+  <section aria-labelledby="voter-approval-title" class="my-4 p-4 border rounded">
+    <h2 id="voter-approval-title" class="pb-2 mb-4 border-bottom border-warning">
+      Voter Approval Management
+      <span class="badge bg-warning text-dark ms-2">{{ pending_count }} Pending</span>
+    </h2>
 
-    <form aria-label="Voter verification form" onsubmit="return false;">
-      <div class="mb-3">
-        <label for="voterSearch" class="form-label fw-bold">Search Voter ID</label>
-        <input type="text" id="voterSearch" name="voterSearch" class="form-control" placeholder="Enter Voter ID to search" autocomplete="off" />
+    <!-- Approval Tabs -->
+    <ul class="nav nav-tabs" id="approvalTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">
+          Pending Approval ({{ pending_count }})
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="approved-tab" data-bs-toggle="tab" data-bs-target="#approved" type="button" role="tab">
+          Approved ({{ approved_count }})
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="rejected-tab" data-bs-toggle="tab" data-bs-target="#rejected" type="button" role="tab">
+          Rejected ({{ rejected_count }})
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content" id="approvalTabContent">
+      <!-- Pending Voters Tab -->
+      <div class="tab-pane fade show active" id="pending" role="tabpanel">
+        <div class="mt-3">
+          {% if pending_voters %}
+            <div class="table-responsive">
+              <table class="table table-bordered table-striped">
+                <thead class="table-warning">
+                  <tr>
+                    <th scope="col">Voter ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Mobile</th>
+                    <th scope="col">State</th>
+                    <th scope="col">Registration Date</th>
+                    <th scope="col">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for voter in pending_voters %}
+                  <tr id="voter-row-{{ voter.id }}">
+                    <td>{{ voter.voter_id }}</td>
+                    <td>{{ voter.full_name }}</td>
+                    <td>{{ voter.email }}</td>
+                    <td>{{ voter.mobile }}</td>
+                    <td>{{ voter.state }}</td>
+                    <td>{{ voter.created_at|date:"M d, Y H:i" }}</td>
+                    <td>
+                      <button class="btn btn-success btn-sm me-2" onclick="approveVoter('{{ voter.id }}', '{{ voter.voter_id }}')">
+                        Approve
+                      </button>
+                      <button class="btn btn-danger btn-sm" onclick="showRejectModal('{{ voter.id }}', '{{ voter.voter_id }}')">
+                        Reject
+                      </button>
+                      <button class="btn btn-info btn-sm ms-2" onclick="viewVoterDetails('{{ voter.id }}')">
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="alert alert-info">No pending voter approvals.</div>
+          {% endif %}
+        </div>
       </div>
 
-      <div class="table-responsive">
-        <table class="table table-bordered table-striped" aria-describedby="voter-list-desc" role="grid" tabindex="0">
-          <caption id="voter-list-desc" class="sr-only">List of voters requiring verification</caption>
-          <thead>
-            <tr>
-              <th scope="col">Voter ID</th>
-              <th scope="col">Aadhar Verified</th>
-              <th scope="col">PAN Verified</th>
-              <th scope="col">Voter ID Doc Verified</th>
-              <th scope="col">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>VTR123456</td>
-              <td><input type="checkbox" class="form-check-input" aria-label="Aadhar verification status for VTR123456" checked /></td>
-              <td><input type="checkbox" class="form-check-input" aria-label="PAN verification status for VTR123456" checked /></td>
-              <td><input type="checkbox" class="form-check-input" aria-label="Voter ID document verification status for VTR123456" /></td>
-              <td><button class="btn verify-button btn-sm" aria-label="Verify voter VTR123456">Verify</button></td>
-            </tr>
-            <tr>
-              <td>VTR987654</td>
-              <td><input type="checkbox" class="form-check-input" aria-label="Aadhar verification status for VTR987654" /></td>
-              <td><input type="checkbox" class="form-check-input" aria-label="PAN verification status for VTR987654" /></td>
-              <td><input type="checkbox" class="form-check-input" aria-label="Voter ID document verification status for VTR987654" checked /></td>
-              <td><button class="btn verify-button btn-sm" aria-label="Verify voter VTR987654">Verify</button></td>
-            </tr>
-            <tr>
-              <td>VTR456789</td>
-              <td><input type="checkbox" class="form-check-input" aria-label="Aadhar verification status for VTR456789" checked /></td>
-              <td><input type="checkbox" class="form-check-input" aria-label="PAN verification status for VTR456789" /></td>
-              <td><input type="checkbox" class="form-check-input" aria-label="Voter ID document verification status for VTR456789" /></td>
-              <td><button class="btn verify-button btn-sm" aria-label="Verify voter VTR456789">Verify</button></td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Approved Voters Tab -->
+      <div class="tab-pane fade" id="approved" role="tabpanel">
+        <div class="mt-3">
+          {% if approved_voters %}
+            <div class="table-responsive">
+              <table class="table table-bordered table-striped">
+                <thead class="table-success">
+                  <tr>
+                    <th scope="col">Voter ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">State</th>
+                    <th scope="col">Approved Date</th>
+                    <th scope="col">Approved By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for voter in approved_voters %}
+                  <tr>
+                    <td>{{ voter.voter_id }}</td>
+                    <td>{{ voter.full_name }}</td>
+                    <td>{{ voter.email }}</td>
+                    <td>{{ voter.state }}</td>
+                    <td>{{ voter.approval_date|date:"M d, Y H:i" }}</td>
+                    <td>{{ voter.approved_by.username|default:"N/A" }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="alert alert-info">No approved voters yet.</div>
+          {% endif %}
+        </div>
       </div>
-      <button type="submit" class="btn btn-primary mt-3" disabled>Update Verification</button>
-    </form>
+
+      <!-- Rejected Voters Tab -->
+      <div class="tab-pane fade" id="rejected" role="tabpanel">
+        <div class="mt-3">
+          {% if rejected_voters %}
+            <div class="table-responsive">
+              <table class="table table-bordered table-striped">
+                <thead class="table-danger">
+                  <tr>
+                    <th scope="col">Voter ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">State</th>
+                    <th scope="col">Rejection Date</th>
+                    <th scope="col">Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for voter in rejected_voters %}
+                  <tr>
+                    <td>{{ voter.voter_id }}</td>
+                    <td>{{ voter.full_name }}</td>
+                    <td>{{ voter.email }}</td>
+                    <td>{{ voter.state }}</td>
+                    <td>{{ voter.updated_at|date:"M d, Y H:i" }}</td>
+                    <td>{{ voter.rejection_reason|default:"No reason provided" }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="alert alert-info">No rejected voters.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- Add Candidates -->
@@ -147,7 +252,6 @@
           <option value="Sikkim">Sikkim</option>
           <option value="Tripura">Tripura</option>
           <option value="Arunachal Pradesh">Arunachal Pradesh</option>
-          <!-- Add more states as needed -->
         </select>
       </div>
       <div class="mb-3">
@@ -159,7 +263,6 @@
           <option value="Municipal">Municipal</option>
           <option value="Panchayat">Panchayat</option>
           <option value="By-Election">By-Election</option>
-          <!-- Add more election types as needed -->
         </select>
       </div>
       <div class="mb-3">
@@ -167,7 +270,6 @@
         <select id="electionYear" name="electionYear" class="form-select" required>
           <option value="" disabled selected>Select Year</option>
           <script>
-            // Dynamically generate years for the dropdown
             const currentYear = new Date().getFullYear();
             for (let i = currentYear - 5; i <= currentYear + 5; i++) {
               document.write(`<option value="${i}">${i}</option>`);
@@ -203,7 +305,6 @@
           <option value="Delhi">Delhi</option>
           <option value="Bihar">Bihar</option>
           <option value="Maharashtra">Maharashtra</option>
-          <!-- Add more regions as needed, or dynamically load from data -->
         </select>
       </div>
       <div class="mb-3">
@@ -217,9 +318,229 @@
       <button type="submit" class="btn btn-primary">Download List</button>
     </form>
   </section>
-
 </main>
 
+<!-- Rejection Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="rejectModalLabel">Reject Voter</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to reject voter <strong id="rejectVoterName"></strong>?</p>
+        <div class="mb-3">
+          <label for="rejectionReason" class="form-label">Reason for rejection (optional)</label>
+          <textarea class="form-control" id="rejectionReason" rows="3" placeholder="Enter reason for rejection..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmRejectBtn">Reject Voter</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Voter Details Modal -->
+<div class="modal fade" id="voterDetailsModal" tabindex="-1" aria-labelledby="voterDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="voterDetailsModalLabel">Voter Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="voterDetailsContent">
+        <!-- Voter details will be loaded here -->
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Global variables for voter approval
+let pendingRejectVoterId = null;
+let pendingRejectVoterName = null;
+
+// Function to show success message
+function showMessage(message, type = 'success') {
+  const container = document.getElementById('messageContainer');
+  const messageText = document.getElementById('messageText');
+  
+  container.className = `alert alert-${type} alert-dismissible fade show`;
+  messageText.textContent = message;
+  container.style.display = 'block';
+  
+  // Auto-hide after 5 seconds
+  setTimeout(hideMessage, 5000);
+}
+
+// Function to hide message
+function hideMessage() {
+  const container = document.getElementById('messageContainer');
+  container.style.display = 'none';
+}
+
+// Function to get CSRF token
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+// Function to approve a voter
+async function approveVoter(voterId, voterIdString) {
+  try {
+    const response = await fetch('/api/approve-voter/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: JSON.stringify({
+        voter_id: voterId,
+        action: 'approve'
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      showMessage(result.message, 'success');
+      // Remove the row from pending table
+      const row = document.getElementById(`voter-row-${voterId}`);
+      if (row) {
+        row.remove();
+      }
+      // Update badge counts
+      updateBadgeCounts();
+    } else {
+      showMessage(result.message, 'danger');
+    }
+  } catch (error) {
+    console.error('Error approving voter:', error);
+    showMessage('Error approving voter. Please try again.', 'danger');
+  }
+}
+
+// Function to show reject modal
+function showRejectModal(voterId, voterIdString) {
+  pendingRejectVoterId = voterId;
+  pendingRejectVoterName = voterIdString;
+  
+  document.getElementById('rejectVoterName').textContent = voterIdString;
+  document.getElementById('rejectionReason').value = '';
+  
+  const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
+  modal.show();
+}
+
+// Function to reject a voter
+async function rejectVoter() {
+  const reason = document.getElementById('rejectionReason').value;
+  
+  try {
+    const response = await fetch('/api/approve-voter/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: JSON.stringify({
+        voter_id: pendingRejectVoterId,
+        action: 'reject',
+        rejection_reason: reason
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      showMessage(result.message, 'success');
+      // Remove the row from pending table
+      const row = document.getElementById(`voter-row-${pendingRejectVoterId}`);
+      if (row) {
+        row.remove();
+      }
+      // Hide modal
+      const modal = bootstrap.Modal.getInstance(document.getElementById('rejectModal'));
+      modal.hide();
+      // Update badge counts
+      updateBadgeCounts();
+    } else {
+      showMessage(result.message, 'danger');
+    }
+  } catch (error) {
+    console.error('Error rejecting voter:', error);
+    showMessage('Error rejecting voter. Please try again.', 'danger');
+  }
+}
+
+// Function to update badge counts
+function updateBadgeCounts() {
+  // Count remaining pending voters
+  const pendingRows = document.querySelectorAll('#pending tbody tr');
+  const pendingCount = pendingRows.length;
+  
+  // Update the badge in the tab
+  const pendingTab = document.getElementById('pending-tab');
+  if (pendingTab) {
+    pendingTab.innerHTML = `Pending Approval (${pendingCount})`;
+  }
+  
+  // Update the main header badge
+  const headerBadge = document.querySelector('#voter-approval-title .badge');
+  if (headerBadge) {
+    headerBadge.textContent = `${pendingCount} Pending`;
+  }
+}
+
+// Function to view voter details (placeholder)
+function viewVoterDetails(voterId) {
+  // This would fetch and display detailed voter information
+  // For now, just show a placeholder
+  const modal = new bootstrap.Modal(document.getElementById('voterDetailsModal'));
+  const content = document.getElementById('voterDetailsContent');
+  content.innerHTML = `
+    <div class="text-center">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2">Loading voter details...</p>
+    </div>
+  `;
+  modal.show();
+  
+  // Simulate loading
+  setTimeout(() => {
+    content.innerHTML = `
+      <div class="alert alert-info">
+        <strong>Feature coming soon!</strong> Detailed voter information view will be implemented.
+      </div>
+    `;
+  }, 1000);
+}
+
+// Event listener for reject confirmation button
+document.getElementById('confirmRejectBtn').addEventListener('click', rejectVoter);
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('Admin dashboard loaded');
+  
+  // Any additional initialization can go here
+});
+</script>
 </body>
 </html>

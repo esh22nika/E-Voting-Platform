@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -26,7 +26,7 @@ def auth_page(request):
 
 @csrf_exempt
 def register_voter(request):
-    """Handle voter registration"""
+    """Handle voter registration with approval system"""
     if request.method == 'POST':
         try:
             # Handle both FormData and JSON
@@ -78,14 +78,15 @@ def register_voter(request):
                     'message': 'You must be 18 years or older to register'
                 })
             
-            # Create user
+            # Create user with is_active=False for approval workflow
             user = CustomUser.objects.create_user(
                 username=data['voterId'],
                 password=data['password'],
-                role='voter'
+                role='voter',
+                is_active=False  # User inactive until approved
             )
             
-            # Create voter profile
+            # Create voter profile with pending approval status
             voter = Voter.objects.create(
                 user=user,
                 first_name=data['firstName'],
@@ -102,12 +103,13 @@ def register_voter(request):
                 place_of_birth=data['placeOfBirth'],
                 voter_id=data['voterId'],
                 aadhar_number=data['aadharNumber'],
-                pan_number=data['panNumber']
+                pan_number=data['panNumber'],
+                approval_status='pending'  # Set approval status to pending
             )
             
             return JsonResponse({
                 'success': True, 
-                'message': 'Registration successful! Please login with your credentials.'
+                'message': 'Registration successful! Your account is pending approval. You will be notified once approved.'
             })
             
         except Exception as e:
@@ -121,7 +123,7 @@ def register_voter(request):
 
 @csrf_exempt
 def login_user(request):
-    """Handle voter login"""
+    """Handle voter login with approval check"""
     if request.method == 'POST':
         try:
             # Handle both FormData and JSON
@@ -144,25 +146,53 @@ def login_user(request):
                     'message': 'Voter ID and password are required'
                 })
             
-            user = authenticate(request, username=voter_id, password=password)
-            
-            if user is not None:
-                if user.role == 'voter':
-                    login(request, user)
-                    logger.info(f"Successful login for voter: {voter_id}")
-                    return JsonResponse({
-                        'success': True, 
-                        'message': 'Login successful',
-                        'redirect_url': '/voter/'
-                    })
+            # Try to authenticate user (this will work even if account is inactive)
+            try:
+                user = CustomUser.objects.get(username=voter_id)
+                if user.check_password(password) and user.role == 'voter':
+                    # Check approval status
+                    try:
+                        voter = Voter.objects.get(user=user)
+                        if voter.approval_status == 'pending':
+                            return JsonResponse({
+                                'success': False,
+                                'message': 'Your account is pending approval. Please wait for admin approval.',
+                                'status': 'pending_approval'
+                            })
+                        elif voter.approval_status == 'rejected':
+                            return JsonResponse({
+                                'success': False,
+                                'message': 'Your account has been rejected. Please contact admin.',
+                                'status': 'rejected'
+                            })
+                        elif voter.approval_status == 'approved' and user.is_active:
+                            # Approved and active - allow login
+                            login(request, user)
+                            logger.info(f"Successful login for voter: {voter_id}")
+                            return JsonResponse({
+                                'success': True, 
+                                'message': 'Login successful',
+                                'redirect_url': '/voter/'
+                            })
+                        else:
+                            return JsonResponse({
+                                'success': False,
+                                'message': 'Account not activated. Please contact admin.',
+                                'status': 'not_activated'
+                            })
+                    except Voter.DoesNotExist:
+                        return JsonResponse({
+                            'success': False, 
+                            'message': 'Voter profile not found'
+                        })
                 else:
-                    logger.warning(f"Non-voter attempted login: {voter_id}")
+                    logger.warning(f"Invalid credentials for voter: {voter_id}")
                     return JsonResponse({
                         'success': False, 
                         'message': 'Invalid Voter ID or password'
                     })
-            else:
-                logger.warning(f"Failed login attempt for voter: {voter_id}")
+            except CustomUser.DoesNotExist:
+                logger.warning(f"User not found: {voter_id}")
                 return JsonResponse({
                     'success': False, 
                     'message': 'Invalid Voter ID or password'
@@ -221,17 +251,29 @@ def admin_auth(request):
 
 @login_required
 def voter_dashboard(request):
-    """Voter dashboard view"""
+    """Voter dashboard view with approval status check"""
     if request.user.role != 'voter':
         return redirect('landing')
     
     try:
         voter = Voter.objects.get(user=request.user)
-        elections = Election.objects.all().order_by('-created_at')
+        
+        # Check approval status
+        if voter.approval_status != 'approved':
+            context = {
+                'voter': voter,
+                'approval_status': voter.approval_status,
+                'rejection_reason': voter.rejection_reason if voter.approval_status == 'rejected' else None
+            }
+            return render(request, 'voter.html', context)
+        
+        # If approved, show full dashboard
+        elections = Election.objects.filter(is_active=True).order_by('-created_at')
         
         context = {
             'voter': voter,
             'elections': elections,
+            'approval_status': 'approved'
         }
         return render(request, 'voter.html', context)
     except Voter.DoesNotExist:
@@ -240,11 +282,15 @@ def voter_dashboard(request):
 
 @login_required
 def admin_dashboard(request):
-    """Admin dashboard view"""
+    """Admin dashboard view with voter approval management"""
     if not (request.user.is_staff or request.user.role == 'admin'):
         return redirect('landing')
     
-    voters = Voter.objects.all().order_by('-created_at')
+    # Get voters by approval status
+    pending_voters = Voter.objects.filter(approval_status='pending').order_by('-created_at')
+    approved_voters = Voter.objects.filter(approval_status='approved').order_by('-approval_date')
+    rejected_voters = Voter.objects.filter(approval_status='rejected').order_by('-updated_at')
+    
     elections = Election.objects.all().order_by('-created_at')
     candidates = Candidate.objects.all().order_by('-created_at')
     
@@ -252,11 +298,90 @@ def admin_dashboard(request):
         'admin_username': request.user.username,
         'is_superuser': request.user.is_superuser,
         'django_admin_url': '/admin/',
-        'voters': voters,
+        'pending_voters': pending_voters,
+        'approved_voters': approved_voters,
+        'rejected_voters': rejected_voters,
         'elections': elections,
         'candidates': candidates,
+        'pending_count': pending_voters.count(),
+        'approved_count': approved_voters.count(),
+        'rejected_count': rejected_voters.count(),
     }
     return render(request, 'admin.html', context)
+
+@csrf_exempt
+@login_required
+def approve_voter(request):
+    """Handle voter approval"""
+    if not (request.user.is_staff or request.user.role == 'admin'):
+        return JsonResponse({'success': False, 'message': 'Unauthorized'})
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            voter_id = data.get('voter_id')
+            
+            voter = get_object_or_404(Voter, id=voter_id)
+            
+            # Update approval status
+            voter.approval_status = 'approved'
+            voter.approved_by = request.user
+            voter.approval_date = timezone.now()
+            voter.save()
+            
+            # Activate user account
+            voter.user.is_active = True
+            voter.user.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Voter {voter.voter_id} approved successfully'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error approving voter: {str(e)}'
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request method'})
+
+@csrf_exempt
+@login_required
+def reject_voter(request):
+    """Handle voter rejection"""
+    if not (request.user.is_staff or request.user.role == 'admin'):
+        return JsonResponse({'success': False, 'message': 'Unauthorized'})
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            voter_id = data.get('voter_id')
+            reason = data.get('reason', 'No reason provided')
+            
+            voter = get_object_or_404(Voter, id=voter_id)
+            
+            # Update approval status
+            voter.approval_status = 'rejected'
+            voter.rejection_reason = reason
+            voter.save()
+            
+            # Deactivate user account
+            voter.user.is_active = False
+            voter.user.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Voter {voter.voter_id} rejected successfully'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error rejecting voter: {str(e)}'
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request method'})
 
 def results_page(request):
     """Results page view"""
@@ -271,6 +396,5 @@ def logout_user(request):
     logout(request)
     messages.success(request, 'You have been logged out successfully.')
     return redirect('landing')
-
 
 
