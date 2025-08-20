@@ -1,546 +1,1323 @@
-{% load static %} 
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DeshKaVote - Admin Interface</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DeshKaVote - Advanced Admin Interface</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <style>
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .status-active { background-color: #28a745; }
+        .status-upcoming { background-color: #ffc107; }
+        .status-completed { background-color: #6c757d; }
+        .status-suspended { background-color: #dc3545; }
+        
+        .real-time-counter {
+            font-size: 2rem;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .system-health {
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            background: #f8f9fa;
+            margin: 10px 0;
+        }
+        
+        .node-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .node-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+            transition: all 0.3s ease;
+        }
+        
+        .node-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .consensus-progress {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .consensus-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #28a745);
+            transition: width 0.3s ease;
+        }
+        
+        .activity-log {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            background: #f8f9fa;
+        }
+        
+        .activity-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 0.9rem;
+        }
+        
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+        
+        .voter-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .btn-approve {
+            background-color: #28a745;
+            border-color: #28a745;
+            color: white;
+        }
+        
+        .btn-reject {
+            background-color: #dc3545;
+            border-color: #dc3545;
+            color: white;
+        }
+        
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .tab-content {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 20px;
+        }
+        
+        .nav-tabs .nav-link {
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .nav-tabs .nav-link.active {
+            background-color: white;
+            border-bottom-color: white;
+        }
+    </style>
 </head>
 <body>
 
-<nav class="p-3 border-bottom mb-4 bg-light">
-  <a href="{% url 'landing' %}" class="me-3">Home</a>
-  <a href="{% url 'admin_login' %}">Login</a>
-  <a href="{% url 'logout' %}" class="me-3">Logout</a>
+<div class="toast-container"></div>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'landing' %}">
+            <img src="{% static 'images/logo.png' %}" alt="DeshKaVote" height="40" class="me-2">
+            DeshKaVote Admin
+        </a>
+        <div class="navbar-nav ms-auto">
+            <span class="navbar-text me-3 text-white">
+                <i class="fas fa-user"></i> {{ admin_username }}
+            </span>
+            <a class="nav-link text-white" href="{% url 'logout' %}">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </div>
 </nav>
 
-<header class="text-center my-4">
-  <img src="{% static 'images/logo.png' %}" alt="DeshKaVote Logo" class="rounded-circle mb-2" style="width: 100px; height: 100px; object-fit: cover; border: none;">
-  <div>DeshKaVote - Admin Interface</div>
-  <div class="text-muted">Welcome, {{ admin_username }}</div>
-</header>
+<div class="container-fluid mt-4">
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Pending Approvals</h5>
+                            <div class="real-time-counter" id="pendingCount">{{ stats.pending_count }}</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Approved Voters</h5>
+                            <div class="real-time-counter" id="approvedCount">{{ stats.approved_count }}</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Active Elections</h5>
+                            <div class="real-time-counter" id="activeElections">{{ stats.active_elections }}</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-vote-yea fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">System Health</h5>
+                            <div class="real-time-counter" id="systemHealth">{{ stats.system_health|floatformat:1 }}%</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-server fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<main class="container">
-  
-  <!-- Display success/error messages -->
-  <div id="messageContainer" style="display: none;" class="alert alert-dismissible fade show">
-    <span id="messageText"></span>
-    <button type="button" class="btn-close" onclick="hideMessage()"></button>
-  </div>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="system-health">
+                <h5><i class="fas fa-heartbeat text-success"></i> Distributed System Status</h5>
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="node-grid" id="nodeGrid">
+                            </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>System Metrics</h6>
+                        <div id="systemMetrics">
+                            <p>Active Nodes: <span id="activeNodes">{{ stats.active_nodes }}</span>/{{ stats.total_nodes }}</p>
+                            <p>Network Latency: <span id="networkLatency">--</span>ms</p>
+                            <p>Consensus Rate: <span id="consensusRate">--</span>%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-  <!-- Voter Approval Section -->
-  <section aria-labelledby="voter-approval-title" class="my-4 p-4 border rounded">
-    <h2 id="voter-approval-title" class="pb-2 mb-4 border-bottom border-warning">
-      Voter Approval Management
-      <span class="badge bg-warning text-dark ms-2">{{ pending_count }} Pending</span>
-    </h2>
-
-    <!-- Approval Tabs -->
-    <ul class="nav nav-tabs" id="approvalTabs" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">
-          Pending Approval ({{ pending_count }})
-        </button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="approved-tab" data-bs-toggle="tab" data-bs-target="#approved" type="button" role="tab">
-          Approved ({{ approved_count }})
-        </button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="rejected-tab" data-bs-toggle="tab" data-bs-target="#rejected" type="button" role="tab">
-          Rejected ({{ rejected_count }})
-        </button>
-      </li>
+    <ul class="nav nav-tabs" id="adminTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="voters-tab" data-bs-toggle="tab" data-bs-target="#voters" type="button" role="tab">
+                <i class="fas fa-users"></i> Voter Management
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="elections-tab" data-bs-toggle="tab" data-bs-target="#elections" type="button" role="tab">
+                <i class="fas fa-vote-yea"></i> Elections
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="candidates-tab" data-bs-toggle="tab" data-bs-target="#candidates" type="button" role="tab">
+                <i class="fas fa-user-tie"></i> Candidates
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="monitoring-tab" data-bs-toggle="tab" data-bs-target="#monitoring" type="button" role="tab">
+                <i class="fas fa-chart-line"></i> Real-time Monitoring
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="audit-tab" data-bs-toggle="tab" data-bs-target="#audit" type="button" role="tab">
+                <i class="fas fa-file-alt"></i> Audit Logs
+            </button>
+        </li>
     </ul>
 
-    <div class="tab-content" id="approvalTabContent">
-      <!-- Pending Voters Tab -->
-      <div class="tab-pane fade show active" id="pending" role="tabpanel">
-        <div class="mt-3">
-          {% if pending_voters %}
-            <div class="table-responsive">
-              <table class="table table-bordered table-striped">
-                <thead class="table-warning">
-                  <tr>
-                    <th scope="col">Voter ID</th>
-                    <th scope="col">Name</th>
-                    <th scope="col">Email</th>
-                    <th scope="col">Mobile</th>
-                    <th scope="col">State</th>
-                    <th scope="col">Registration Date</th>
-                    <th scope="col">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for voter in pending_voters %}
-                  <tr id="voter-row-{{ voter.id }}">
-                    <td>{{ voter.voter_id }}</td>
-                    <td>{{ voter.full_name }}</td>
-                    <td>{{ voter.email }}</td>
-                    <td>{{ voter.mobile }}</td>
-                    <td>{{ voter.state }}</td>
-                    <td>{{ voter.created_at|date:"M d, Y H:i" }}</td>
-                    <td>
-                      <button class="btn btn-success btn-sm me-2" onclick="approveVoter('{{ voter.id }}', '{{ voter.voter_id }}')">
-                        Approve
-                      </button>
-                      <button class="btn btn-danger btn-sm" onclick="showRejectModal('{{ voter.id }}', '{{ voter.voter_id }}')">
-                        Reject
-                      </button>
-                      <button class="btn btn-info btn-sm ms-2" onclick="viewVoterDetails('{{ voter.id }}')">
-                        View Details
-                      </button>
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+    <div class="tab-content" id="adminTabsContent">
+        
+        <div class="tab-pane fade show active" id="voters" role="tabpanel">
+            
+            <div class="row">
+                <div class="col-lg-8">
+                    <h4>Voter Approvals</h4>
+                    
+                    <ul class="nav nav-pills mb-3" id="voterStatusTabs">
+                        <li class="nav-item">
+                            <button class="nav-link active" id="pending-voters-tab" data-bs-toggle="pill" data-bs-target="#pending-voters">
+                                Pending <span class="badge bg-warning ms-1" id="pendingBadge">{{ stats.pending_count }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="approved-voters-tab" data-bs-toggle="pill" data-bs-target="#approved-voters">
+                                Approved <span class="badge bg-success ms-1" id="approvedBadge">{{ stats.approved_count }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="rejected-voters-tab" data-bs-toggle="pill" data-bs-target="#rejected-voters">
+                                Rejected <span class="badge bg-danger ms-1" id="rejectedBadge">{{ stats.rejected_count }}</span>
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content" id="voterStatusContent">
+                        
+                        <div class="tab-pane fade show active" id="pending-voters">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="pendingVotersTable">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Voter ID</th>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Location</th>
+                                            <th>Registration Date</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for voter in pending_voters %}
+                                        <tr id="voter-{{ voter.id }}">
+                                            <td>{{ voter.voter_id }}</td>
+                                            <td>{{ voter.full_name }}</td>
+                                            <td>{{ voter.email }}</td>
+                                            <td>{{ voter.city }}, {{ voter.state }}</td>
+                                            <td>{{ voter.created_at|date:"M d, Y" }}</td>
+                                            <td>
+                                                <div class="voter-actions">
+                                                    <button class="btn btn-sm btn-approve" onclick="approveVoter('{{ voter.id }}', '{{ voter.voter_id }}')">
+                                                        <i class="fas fa-check"></i> Approve
+                                                    </button>
+                                                    <button class="btn btn-sm btn-reject" onclick="showRejectModal('{{ voter.id }}', '{{ voter.voter_id }}')">
+                                                        <i class="fas fa-times"></i> Reject
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-info" onclick="viewVoterDetails('{{ voter.id }}')">
+                                                        <i class="fas fa-eye"></i> View
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">No pending voters</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="tab-pane fade" id="approved-voters">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Voter ID</th>
+                                            <th>Name</th>
+                                            <th>Location</th>
+                                            <th>Approved By</th>
+                                            <th>Approval Date</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for voter in approved_voters %}
+                                        <tr>
+                                            <td>{{ voter.voter_id }}</td>
+                                            <td>{{ voter.full_name }}</td>
+                                            <td>{{ voter.city }}, {{ voter.state }}</td>
+                                            <td>{{ voter.approved_by.username|default:"System" }}</td>
+                                            <td>{{ voter.approval_date|date:"M d, Y H:i" }}</td>
+                                            <td>
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check-circle"></i> Approved
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">No approved voters</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="tab-pane fade" id="rejected-voters">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Voter ID</th>
+                                            <th>Name</th>
+                                            <th>Location</th>
+                                            <th>Rejection Reason</th>
+                                            <th>Updated Date</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for voter in rejected_voters %}
+                                        <tr id="voter-{{ voter.id }}">
+                                            <td>{{ voter.voter_id }}</td>
+                                            <td>{{ voter.full_name }}</td>
+                                            <td>{{ voter.city }}, {{ voter.state }}</td>
+                                            <td>{{ voter.rejection_reason|default:"No reason provided" }}</td>
+                                            <td>{{ voter.updated_at|date:"M d, Y H:i" }}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" onclick="reconsiderVoter('{{ voter.id }}')">
+                                                    <i class="fas fa-undo"></i> Reconsider
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">No rejected voters</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <h5>Real-time Activity</h5>
+                    <div class="activity-log" id="activityLog">
+                        <div class="activity-item text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            System initialized and ready for monitoring...
+                        </div>
+                    </div>
+                </div>
             </div>
-          {% else %}
-            <div class="alert alert-info">No pending voter approvals.</div>
-          {% endif %}
         </div>
-      </div>
-
-      <!-- Approved Voters Tab -->
-      <div class="tab-pane fade" id="approved" role="tabpanel">
-        <div class="mt-3">
-          {% if approved_voters %}
-            <div class="table-responsive">
-              <table class="table table-bordered table-striped">
-                <thead class="table-success">
-                  <tr>
-                    <th scope="col">Voter ID</th>
-                    <th scope="col">Name</th>
-                    <th scope="col">Email</th>
-                    <th scope="col">State</th>
-                    <th scope="col">Approved Date</th>
-                    <th scope="col">Approved By</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for voter in approved_voters %}
-                  <tr>
-                    <td>{{ voter.voter_id }}</td>
-                    <td>{{ voter.full_name }}</td>
-                    <td>{{ voter.email }}</td>
-                    <td>{{ voter.state }}</td>
-                    <td>{{ voter.approval_date|date:"M d, Y H:i" }}</td>
-                    <td>{{ voter.approved_by.username|default:"N/A" }}</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+        
+        <div class="tab-pane fade" id="elections" role="tabpanel">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4>Elections Management</h4>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createElectionModal">
+                            <i class="fas fa-plus"></i> Create Election
+                        </button>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="electionsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Election Name</th>
+                                    <th>Type</th>
+                                    <th>State/Region</th>
+                                    <th>Date Range</th>
+                                    <th>Status</th>
+                                    <th>Consensus</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for election in elections %}
+                                <tr>
+                                    <td>{{ election.name }}</td>
+                                    <td>{{ election.election_type }}</td>
+                                    <td>{{ election.state }}{% if election.city %}, {{ election.city }}{% endif %}</td>
+                                    <td>
+                                        {{ election.start_date|date:"M d" }} - {{ election.end_date|date:"M d, Y" }}
+                                    </td>
+                                    <td>
+                                        <span class="status-indicator status-{{ election.status }}"></span>
+                                        {{ election.get_status_display }}
+                                    </td>
+                                    <td>
+                                        <div class="consensus-progress">
+                                            <div class="consensus-bar"style="width: {{ election.consensus_width|default:"0" }}%"></div>
+                                        </div>
+                                        <small>{{ election.get_consensus_status_display }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                                Actions
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="#" onclick="monitorElection('{{ election.id }}')">
+                                                    <i class="fas fa-chart-line"></i> Monitor
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="manageElection('{{ election.id }}')">
+                                                    <i class="fas fa-cog"></i> Manage
+                                                </a></li>
+                                                {% if election.status == 'upcoming' %}
+                                                <li><a class="dropdown-item" href="#" onclick="startElection('{{ election.id }}')">
+                                                    <i class="fas fa-play"></i> Start
+                                                </a></li>
+                                                {% elif election.status == 'active' %}
+                                                <li><a class="dropdown-item text-danger" href="#" onclick="endElection('{{ election.id }}')">
+                                                    <i class="fas fa-stop"></i> End
+                                                </a></li>
+                                                {% endif %}
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">No elections created yet</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <h5>Election Statistics</h5>
+                    <div class="card">
+                        <div class="card-body">
+                            <canvas id="electionChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
             </div>
-          {% else %}
-            <div class="alert alert-info">No approved voters yet.</div>
-          {% endif %}
         </div>
-      </div>
-
-      <!-- Rejected Voters Tab -->
-      <div class="tab-pane fade" id="rejected" role="tabpanel">
-        <div class="mt-3">
-          {% if rejected_voters %}
-            <div class="table-responsive">
-              <table class="table table-bordered table-striped">
-                <thead class="table-danger">
-                  <tr>
-                    <th scope="col">Voter ID</th>
-                    <th scope="col">Name</th>
-                    <th scope="col">Email</th>
-                    <th scope="col">State</th>
-                    <th scope="col">Rejection Date</th>
-                    <th scope="col">Reason</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for voter in rejected_voters %}
-                  <tr>
-                    <td>{{ voter.voter_id }}</td>
-                    <td>{{ voter.full_name }}</td>
-                    <td>{{ voter.email }}</td>
-                    <td>{{ voter.state }}</td>
-                    <td>{{ voter.updated_at|date:"M d, Y H:i" }}</td>
-                    <td>{{ voter.rejection_reason|default:"No reason provided" }}</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+        
+        <div class="tab-pane fade" id="candidates" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4>Candidates Management</h4>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCandidateModal">
+                    <i class="fas fa-user-plus"></i> Add Candidate
+                </button>
             </div>
-          {% else %}
-            <div class="alert alert-info">No rejected voters.</div>
-          {% endif %}
+            
+            <div class="table-responsive">
+                <table class="table table-hover" id="candidatesTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Party</th>
+                            <th>Constituency</th>
+                            <th>Election</th>
+                            <th>Symbol</th>
+                            <th>Verification</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for candidate in candidates %}
+                        <tr>
+                            <td>{{ candidate.name }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ candidate.party }}</span>
+                            </td>
+                            <td>{{ candidate.constituency }}</td>
+                            <td>{{ candidate.election.name }}</td>
+                            <td>{{ candidate.symbol }}</td>
+                            <td>
+                                {% if candidate.is_verified %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check"></i> Verified
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-clock"></i> Pending
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-info" onclick="viewCandidate('{{ candidate.id }}')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-outline-primary" onclick="editCandidate('{{ candidate.id }}')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    {% if not candidate.is_verified %}
+                                    <button class="btn btn-outline-success" onclick="verifyCandidate('{{ candidate.id }}')">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">No candidates added yet</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
-      </div>
+        
+        <div class="tab-pane fade" id="monitoring" role="tabpanel">
+            <h4>Real-time System Monitoring</h4>
+            
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5>Vote Processing Queue</h5>
+                    <div class="card">
+                        <div class="card-body">
+                            <canvas id="voteQueueChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5>Node Performance</h5>
+                    <div class="card">
+                        <div class="card-body">
+                            <canvas id="nodePerformanceChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-12">
+                    <h5>Consensus Monitoring</h5>
+                    <div id="consensusMonitor" class="border rounded p-3">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-sync fa-spin"></i> Monitoring consensus processes...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-pane fade" id="audit" role="tabpanel">
+            <h4>Audit Logs</h4>
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <select class="form-select" id="logTypeFilter">
+                        <option value="">All Log Types</option>
+                        <option value="vote_cast">Vote Cast</option>
+                        <option value="voter_approved">Voter Approved</option>
+                        <option value="voter_rejected">Voter Rejected</option>
+                        <option value="election_created">Election Created</option>
+                        <option value="admin_action">Admin Action</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <input type="date" class="form-control" id="dateFilter">
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-primary" onclick="filterAuditLogs()">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="exportAuditLogs()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-sm table-hover" id="auditLogsTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Type</th>
+                            <th>User</th>
+                            <th>Details</th>
+                            <th>IP Address</th>
+                            <th>Hash</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">Loading audit logs...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
-  </section>
-
-  <!-- Add Candidates -->
-  <section aria-labelledby="add-candidate-title" class="my-4 p-4 border rounded">
-    <h2 id="add-candidate-title" class="pb-2 mb-4 border-bottom border-warning">Add Candidate</h2>
-    <form aria-label="Add candidate form" onsubmit="return false;">
-      <div class="mb-3">
-        <label for="candidateName" class="form-label fw-bold">Candidate Name</label>
-        <input type="text" id="candidateName" name="candidateName" class="form-control" placeholder="Enter candidate full name" required />
-      </div>
-      <div class="mb-3">
-        <label for="candidateParty" class="form-label fw-bold">Party</label>
-        <select id="candidateParty" name="candidateParty" class="form-select" required>
-          <option value="" disabled selected>Select party</option>
-          <option value="BJP">BJP</option>
-          <option value="Congress">Congress</option>
-          <option value="AAP">AAP</option>
-          <option value="Left Front">Left Front</option>
-          <option value="Independent">Independent</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-      <div class="mb-3">
-        <label for="candidateConstituency" class="form-label fw-bold">Constituency / Ward</label>
-        <input type="text" id="candidateConstituency" name="candidateConstituency" class="form-control" placeholder="Enter constituency or ward" required />
-      </div>
-      <div class="mb-3">
-        <label for="candidateSymbol" class="form-label fw-bold">Party Symbol</label>
-        <input type="text" id="candidateSymbol" name="candidateSymbol" class="form-control" placeholder="Enter symbol name" required />
-      </div>
-      <div class="mb-3">
-        <label for="candidateEducation" class="form-label fw-bold">Education</label>
-        <input type="text" id="candidateEducation" name="candidateEducation" class="form-control" placeholder="e.g., PhD in Political Science" />
-      </div>
-      <button type="submit" class="btn btn-primary">Add Candidate</button>
-    </form>
-  </section>
-
-  <!-- Create Election -->
-  <section aria-labelledby="create-election-title" class="my-4 p-4 border rounded">
-    <h2 id="create-election-title" class="pb-2 mb-4 border-bottom border-warning">Create Election</h2>
-    <form aria-label="Create election form" onsubmit="return false;">
-      <div class="mb-3">
-        <label for="electionState" class="form-label fw-bold">State</label>
-        <select id="electionState" name="electionState" class="form-select" required>
-          <option value="" disabled selected>Select State</option>
-          <option value="Uttar Pradesh">Uttar Pradesh</option>
-          <option value="Delhi">Delhi</option>
-          <option value="Bihar">Bihar</option>
-          <option value="Maharashtra">Maharashtra</option>
-          <option value="West Bengal">West Bengal</option>
-          <option value="Tamil Nadu">Tamil Nadu</option>
-          <option value="Karnataka">Karnataka</option>
-          <option value="Gujarat">Gujarat</option>
-          <option value="Rajasthan">Rajasthan</option>
-          <option value="Madhya Pradesh">Madhya Pradesh</option>
-          <option value="Kerala">Kerala</option>
-          <option value="Punjab">Punjab</option>
-          <option value="Haryana">Haryana</option>
-          <option value="Odisha">Odisha</option>
-          <option value="Andhra Pradesh">Andhra Pradesh</option>
-          <option value="Telangana">Telangana</option>
-          <option value="Assam">Assam</option>
-          <option value="Chhattisgarh">Chhattisgarh</option>
-          <option value="Jharkhand">Jharkhand</option>
-          <option value="Uttarakhand">Uttarakhand</option>
-          <option value="Himachal Pradesh">Himachal Pradesh</option>
-          <option value="Goa">Goa</option>
-          <option value="Meghalaya">Meghalaya</option>
-          <option value="Manipur">Manipur</option>
-          <option value="Mizoram">Mizoram</option>
-          <option value="Nagaland">Nagaland</option>
-          <option value="Sikkim">Sikkim</option>
-          <option value="Tripura">Tripura</option>
-          <option value="Arunachal Pradesh">Arunachal Pradesh</option>
-        </select>
-      </div>
-      <div class="mb-3">
-        <label for="electionType" class="form-label fw-bold">Election Type</label>
-        <select id="electionType" name="electionType" class="form-select" required>
-          <option value="" disabled selected>Select Election Type</option>
-          <option value="General Election">General Election</option>
-          <option value="State Assembly">State Assembly</option>
-          <option value="Municipal">Municipal</option>
-          <option value="Panchayat">Panchayat</option>
-          <option value="By-Election">By-Election</option>
-        </select>
-      </div>
-      <div class="mb-3">
-        <label for="electionYear" class="form-label fw-bold">Year</label>
-        <select id="electionYear" name="electionYear" class="form-select" required>
-          <option value="" disabled selected>Select Year</option>
-          <script>
-            const currentYear = new Date().getFullYear();
-            for (let i = currentYear - 5; i <= currentYear + 5; i++) {
-              document.write(`<option value="${i}">${i}</option>`);
-            }
-          </script>
-        </select>
-      </div>
-      <div class="mb-3">
-        <label for="electionName" class="form-label fw-bold">Election Name</label>
-        <input type="text" id="electionName" name="electionName" class="form-control" placeholder="Enter election name (e.g., General Election 2024)" required />
-      </div>
-      <div class="mb-3">
-        <label for="startDate" class="form-label fw-bold">Start Date & Time</label>
-        <input type="datetime-local" id="startDate" name="startDate" class="form-control" required />
-      </div>
-      <div class="mb-3">
-        <label for="endDate" class="form-label fw-bold">End Date & Time</label>
-        <input type="datetime-local" id="endDate" name="endDate" class="form-control" required />
-      </div>
-      <button type="submit" class="btn btn-primary">Create Election</button>
-    </form>
-  </section>
-
-  <!-- Download Voter Lists -->
-  <section aria-labelledby="download-voters-title" class="my-4 p-4 border rounded">
-    <h2 id="download-voters-title" class="pb-2 mb-4 border-bottom border-warning">Download Voter Lists</h2>
-    <form aria-label="Download voter lists form" onsubmit="return false;">
-      <div class="mb-3">
-        <label for="downloadRegion" class="form-label fw-bold">Select Region</label>
-        <select id="downloadRegion" name="downloadRegion" class="form-select">
-          <option value="all">All Regions</option>
-          <option value="Uttar Pradesh">Uttar Pradesh</option>
-          <option value="Delhi">Delhi</option>
-          <option value="Bihar">Bihar</option>
-          <option value="Maharashtra">Maharashtra</option>
-        </select>
-      </div>
-      <div class="mb-3">
-        <label for="downloadStatus" class="form-label fw-bold">Voter Status</label>
-        <select id="downloadStatus" name="downloadStatus" class="form-select">
-          <option value="all">All Registered Voters</option>
-          <option value="voted">Voted</option>
-          <option value="notVoted">Not Voted</option>
-        </select>
-      </div>
-      <button type="submit" class="btn btn-primary">Download List</button>
-    </form>
-  </section>
-</main>
-
-<!-- Rejection Modal -->
-<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="rejectModalLabel">Reject Voter</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <p>Are you sure you want to reject voter <strong id="rejectVoterName"></strong>?</p>
-        <div class="mb-3">
-          <label for="rejectionReason" class="form-label">Reason for rejection (optional)</label>
-          <textarea class="form-control" id="rejectionReason" rows="3" placeholder="Enter reason for rejection..."></textarea>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-danger" id="confirmRejectBtn">Reject Voter</button>
-      </div>
-    </div>
-  </div>
 </div>
 
-<!-- Voter Details Modal -->
-<div class="modal fade" id="voterDetailsModal" tabindex="-1" aria-labelledby="voterDetailsModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="voterDetailsModalLabel">Voter Details</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="voterDetailsContent">
-        <!-- Voter details will be loaded here -->
-      </div>
+<div class="modal fade" id="rejectVoterModal" tabindex="-1" aria-labelledby="rejectVoterModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rejectVoterModalLabel">Reject Voter</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Reject voter <strong id="rejectVoterName"></strong>?</p>
+                <div class="mb-3">
+                    <label for="rejectionReason" class="form-label">Reason for rejection:</label>
+                    <textarea class="form-control" id="rejectionReason" rows="3" placeholder="Please provide a reason for rejection..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="confirmRejectVoter()">
+                    <span class="loading-spinner"></span>
+                    Reject Voter
+                </button>
+            </div>
+        </div>
     </div>
-  </div>
+</div>
+
+<div class="modal fade" id="createElectionModal" tabindex="-1" aria-labelledby="createElectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createElectionModalLabel">Create New Election</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createElectionForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="electionName" class="form-label">Election Name</label>
+                                <input type="text" class="form-control" id="electionName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="electionType" class="form-label">Election Type</label>
+                                <select class="form-select" id="electionType" required>
+                                    <option value="">Select Type</option>
+                                    <option value="General Election">General Election</option>
+                                    <option value="State Assembly">State Assembly</option>
+                                    <option value="Municipal">Municipal</option>
+                                    <option value="Panchayat">Panchayat</option>
+                                    <option value="By-Election">By-Election</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="electionState" class="form-label">State</label>
+                                <select class="form-select" id="electionState" required>
+                                    <option value="">Select State</option>
+                                    <option value="Uttar Pradesh">Uttar Pradesh</option>
+                                    <option value="Delhi">Delhi</option>
+                                    <option value="Bihar">Bihar</option>
+                                    <option value="Maharashtra">Maharashtra</option>
+                                    <option value="West Bengal">West Bengal</option>
+                                    </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="electionYear" class="form-label">Year</label>
+                                <select class="form-select" id="electionYear" required></select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="startDateTime" class="form-label">Start Date & Time</label>
+                                <input type="datetime-local" class="form-control" id="startDateTime" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="endDateTime" class="form-label">End Date & Time</label>
+                                <input type="datetime-local" class="form-control" id="endDateTime" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="replicationFactor" class="form-label">Replication Factor</label>
+                                <select class="form-select" id="replicationFactor">
+                                    <option value="3">3 (Recommended)</option>
+                                    <option value="5">5 (High Availability)</option>
+                                    <option value="7">7 (Maximum Security)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="consensusThreshold" class="form-label">Consensus Threshold</label>
+                                <select class="form-select" id="consensusThreshold">
+                                    <option value="51">51% (Simple Majority)</option>
+                                    <option value="67">67% (Super Majority)</option>
+                                    <option value="75">75% (High Consensus)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="createElectionSubmit">
+                        <span class="loading-spinner"></span>
+                        Create Election
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addCandidateModal" tabindex="-1" aria-labelledby="addCandidateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCandidateModalLabel">Add Candidate</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addCandidateForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="candidateElection" class="form-label">Election</label>
+                        <select class="form-select" id="candidateElection" required>
+                            <option value="">Select Election</option>
+                            {% for election in elections %}
+                            <option value="{{ election.id }}">{{ election.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="candidateName" class="form-label">Candidate Name</label>
+                        <input type="text" class="form-control" id="candidateName" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="candidateParty" class="form-label">Party</label>
+                        <select class="form-select" id="candidateParty" required>
+                            <option value="">Select Party</option>
+                            <option value="BJP">BJP</option>
+                            <option value="Congress">Congress</option>
+                            <option value="AAP">AAP</option>
+                            <option value="Left Front">Left Front</option>
+                            <option value="BSP">BSP</option>
+                            <option value="SP">SP</option>
+                            <option value="Independent">Independent</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="candidateConstituency" class="form-label">Constituency</label>
+                        <input type="text" class="form-control" id="candidateConstituency" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="candidateSymbol" class="form-label">Symbol</label>
+                        <input type="text" class="form-control" id="candidateSymbol" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="candidateEducation" class="form-label">Education</label>
+                        <input type="text" class="form-control" id="candidateEducation">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="addCandidateSubmit">
+                        <span class="loading-spinner"></span>
+                        Add Candidate
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Global variables for voter approval
-let pendingRejectVoterId = null;
-let pendingRejectVoterName = null;
+// Global variables
+let adminWebSocket = null;
+let currentRejectVoterId = null;
+let currentRejectVoterName = null;
 
-// Function to show success message
-function showMessage(message, type = 'success') {
-  const container = document.getElementById('messageContainer');
-  const messageText = document.getElementById('messageText');
-  
-  container.className = `alert alert-${type} alert-dismissible fade show`;
-  messageText.textContent = message;
-  container.style.display = 'block';
-  
-  // Auto-hide after 5 seconds
-  setTimeout(hideMessage, 5000);
+// Initialize the admin dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    initializeWebSocket();
+    populateYearDropdown();
+    setupFormHandlers();
+    loadAuditLogs();
+    startHeartbeat();
+});
+
+// WebSocket connection for real-time updates
+function initializeWebSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/admin/`;
+    
+    adminWebSocket = new WebSocket(wsUrl);
+    
+    adminWebSocket.onopen = function(event) {
+        console.log('Admin WebSocket connected');
+        addActivityLog('WebSocket connection established', 'success');
+    };
+    
+    adminWebSocket.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        handleWebSocketMessage(data);
+    };
+    
+    adminWebSocket.onclose = function(event) {
+        console.log('Admin WebSocket disconnected');
+        addActivityLog('WebSocket connection lost. Attempting to reconnect...', 'warning');
+        setTimeout(initializeWebSocket, 5000); // Reconnect after 5 seconds
+    };
+    
+    adminWebSocket.onerror = function(event) {
+        console.error('WebSocket error:', event);
+        addActivityLog('WebSocket error occurred', 'error');
+    };
 }
 
-// Function to hide message
-function hideMessage() {
-  const container = document.getElementById('messageContainer');
-  container.style.display = 'none';
+// Handle incoming WebSocket messages
+function handleWebSocketMessage(data) {
+    switch(data.type) {
+        case 'dashboard_status':
+            updateDashboardStats(data.data);
+            break;
+        case 'voter_approval_update':
+            handleVoterApprovalUpdate(data.data);
+            break;
+        case 'system_alert':
+            showSystemAlert(data.data);
+            break;
+        case 'system_health':
+            updateSystemHealth(data.data);
+            break;
+        case 'new_registration':
+            addActivityLog(data.data.message, 'info');
+            break;
+        case 'new_vote':
+            addActivityLog(data.data.message, 'info');
+            break;
+        case 'new_election':
+            addActivityLog(data.data.message, 'success');
+            // Reload to update election table and dropdowns
+            setTimeout(() => location.reload(), 1500);
+            break;
+        case 'new_candidate':
+            addActivityLog(data.data.message, 'success');
+            // Reload to update candidates table
+            setTimeout(() => location.reload(), 1500);
+            break;
+        case 'election_status_update':
+            addActivityLog(data.data.message, 'success');
+            setTimeout(() => location.reload(), 1500);
+            break;
+        default:
+            console.log('Unknown message type:', data.type);
+    }
+}
+
+// Update dashboard statistics in real-time
+function updateDashboardStats(stats) {
+    document.getElementById('pendingCount').textContent = stats.voters.pending;
+    document.getElementById('approvedCount').textContent = stats.voters.approved;
+    document.getElementById('activeElections').textContent = stats.elections.active;
+    document.getElementById('systemHealth').textContent = stats.system.health_percentage.toFixed(1) + '%';
+    
+    // Update badges
+    document.getElementById('pendingBadge').textContent = stats.voters.pending;
+    document.getElementById('approvedBadge').textContent = stats.voters.approved;
+    document.getElementById('rejectedBadge').textContent = stats.voters.rejected;
+    
+    // Update activity log with recent activity
+    if (stats.recent_activity) {
+        stats.recent_activity.votes.forEach(vote => {
+            addActivityLog(`Vote cast by ${vote.voter_id} for ${vote.candidate}`, 'info');
+        });
+        
+        stats.recent_activity.registrations.forEach(registration => {
+            addActivityLog(`New registration: ${registration.name} (${registration.voter_id})`, 'info');
+        });
+    }
+}
+
+// Handle voter approval updates
+function handleVoterApprovalUpdate(data) {
+    showToast(`Voter ${data.action}: ${data.voter_name}`, data.action === 'approved' ? 'success' : 'warning');
+    addActivityLog(`Voter ${data.action}: ${data.voter_name}`, data.action === 'approved' ? 'success' : 'warning');
+    // Reload the page to update all tables and counts
+    setTimeout(() => location.reload(), 1500);
+}
+
+// Show system alerts
+function showSystemAlert(alert) {
+    const alertClass = alert.alert_type === 'error' ? 'danger' : 
+                     alert.alert_type === 'warning' ? 'warning' : 'info';
+    
+    showToast(alert.message, alertClass);
+    addActivityLog(alert.message, alert.alert_type);
+}
+
+// Update system health display
+function updateSystemHealth(healthData) {
+    const nodeGrid = document.getElementById('nodeGrid');
+    nodeGrid.innerHTML = '';
+    
+    healthData.nodes.forEach(node => {
+        const nodeCard = document.createElement('div');
+        nodeCard.className = `node-card text-center`;
+        nodeCard.innerHTML = `
+            <h6>Node ID: ${node.node_id}</h6>
+            <p><span class="status-indicator status-${node.status}"></span> ${node.status}</p>
+            <small>Uptime: ${node.uptime_percentage.toFixed(1)}%</small>
+        `;
+        nodeGrid.appendChild(nodeCard);
+    });
+}
+
+// Show a Bootstrap toast notification
+function showToast(message, type) {
+    const toastContainer = document.querySelector('.toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type} border-0 show fade`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    `;
+    toastContainer.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 5000);
+}
+
+// Add an item to the activity log
+function addActivityLog(message, type) {
+    const log = document.getElementById('activityLog');
+    const item = document.createElement('div');
+    const icon = type === 'success' ? 'fas fa-check-circle text-success' :
+                 type === 'warning' ? 'fas fa-exclamation-triangle text-warning' :
+                 type === 'error' ? 'fas fa-exclamation-circle text-danger' :
+                 'fas fa-info-circle text-info';
+    
+    item.className = 'activity-item';
+    item.innerHTML = `<i class="${icon}"></i> ${new Date().toLocaleTimeString()} - ${message}`;
+    log.prepend(item);
+}
+
+// Setup form handlers for modals
+function setupFormHandlers() {
+    // Create Election Form
+    document.getElementById('createElectionForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = {
+            name: form.querySelector('#electionName').value,
+            election_type: form.querySelector('#electionType').value,
+            state: form.querySelector('#electionState').value,
+            year: form.querySelector('#electionYear').value,
+            start_date: form.querySelector('#startDateTime').value,
+            end_date: form.querySelector('#endDateTime').value,
+            replication_factor: parseInt(form.querySelector('#replicationFactor').value, 10),
+            consensus_threshold: parseInt(form.querySelector('#consensusThreshold').value, 10)
+        };
+
+        const submitBtn = document.getElementById('createElectionSubmit');
+        submitBtn.disabled = true;
+        const spinner = submitBtn.querySelector('.loading-spinner');
+        spinner.style.display = 'inline-block';
+
+        try {
+            const response = await fetch('/api/create-election/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                showToast(result.message, 'success');
+                form.reset();
+                bootstrap.Modal.getInstance(document.getElementById('createElectionModal')).hide();
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast(result.message, 'danger');
+            }
+        } catch (error) {
+            showToast('Error creating election. Please try again.', 'danger');
+        } finally {
+            submitBtn.disabled = false;
+            spinner.style.display = 'none';
+        }
+    });
+
+    // Add Candidate Form
+    document.getElementById('addCandidateForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = {
+            name: form.querySelector('#candidateName').value,
+            party: form.querySelector('#candidateParty').value,
+            constituency: form.querySelector('#candidateConstituency').value,
+            symbol: form.querySelector('#candidateSymbol').value,
+            education: form.querySelector('#candidateEducation').value,
+            election_id: form.querySelector('#candidateElection').value
+        };
+
+        const submitBtn = document.getElementById('addCandidateSubmit');
+        submitBtn.disabled = true;
+        const spinner = submitBtn.querySelector('.loading-spinner');
+        spinner.style.display = 'inline-block';
+        
+        try {
+            const response = await fetch('/api/add-candidate/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                showToast(result.message, 'success');
+                form.reset();
+                bootstrap.Modal.getInstance(document.getElementById('addCandidateModal')).hide();
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast(result.message, 'danger');
+            }
+        } catch (error) {
+            showToast('Error adding candidate. Please try again.', 'danger');
+        } finally {
+            submitBtn.disabled = false;
+            spinner.style.display = 'none';
+        }
+    });
+}
+
+// Function to generate years for dropdown
+function populateYearDropdown() {
+    const yearSelect = document.getElementById('electionYear');
+    const currentYear = new Date().getFullYear();
+    for (let i = currentYear - 5; i <= currentYear + 5; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = i;
+        if (i === currentYear) {
+            option.selected = true;
+        }
+        yearSelect.appendChild(option);
+    }
+}
+
+// Admin actions
+async function approveVoter(voterId, voterIdString) {
+    if (confirm(`Are you sure you want to approve voter ${voterIdString}?`)) {
+        try {
+            const response = await fetch('/api/approve-voter/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ voter_id: voterId })
+            });
+            const result = await response.json();
+            if (result.success) {
+                showToast(result.message, 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast(result.message, 'danger');
+            }
+        } catch (error) {
+            showToast('Error approving voter. Please try again.', 'danger');
+        }
+    }
+}
+
+function showRejectModal(voterId, voterIdString) {
+    currentRejectVoterId = voterId;
+    currentRejectVoterName = voterIdString;
+    document.getElementById('rejectVoterName').textContent = voterIdString;
+    document.getElementById('rejectionReason').value = '';
+    const modal = new bootstrap.Modal(document.getElementById('rejectVoterModal'));
+    modal.show();
+}
+
+async function confirmRejectVoter() {
+    const reason = document.getElementById('rejectionReason').value;
+    const voterId = currentRejectVoterId;
+    
+    const submitBtn = document.querySelector('#rejectVoterModal .btn-danger');
+    submitBtn.disabled = true;
+    const spinner = submitBtn.querySelector('.loading-spinner');
+    spinner.style.display = 'inline-block';
+    
+    try {
+        const response = await fetch('/api/reject-voter/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ voter_id: voterId, reason: reason })
+        });
+        const result = await response.json();
+        if (result.success) {
+            showToast(result.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('rejectVoterModal')).hide();
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(result.message, 'danger');
+        }
+    } catch (error) {
+        showToast('Error rejecting voter. Please try again.', 'danger');
+    } finally {
+        submitBtn.disabled = false;
+        spinner.style.display = 'none';
+    }
+}
+
+async function reconsiderVoter(voterId) {
+    if (confirm('Are you sure you want to move this voter back to pending?')) {
+        try {
+            const response = await fetch('/api/reconsider-voter/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ voter_id: voterId })
+            });
+            const result = await response.json();
+            if (result.success) {
+                showToast(result.message, 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast(result.message, 'danger');
+            }
+        } catch (error) {
+            showToast('Error reconsidering voter. Please try again.', 'danger');
+        }
+    }
+}
+
+async function startElection(electionId) {
+    if (confirm('Are you sure you want to start this election?')) {
+        try {
+            const response = await fetch('/api/start-election/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ election_id: electionId })
+            });
+            const result = await response.json();
+            if (result.success) {
+                showToast(result.message, 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast(result.message, 'danger');
+            }
+        } catch (error) {
+            showToast('Error starting election. Please try again.', 'danger');
+        }
+    }
+}
+
+async function endElection(electionId) {
+    if (confirm('Are you sure you want to end this election?')) {
+        try {
+            const response = await fetch('/api/end-election/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ election_id: electionId })
+            });
+            const result = await response.json();
+            if (result.success) {
+                showToast(result.message, 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast(result.message, 'danger');
+            }
+        } catch (error) {
+            showToast('Error ending election. Please try again.', 'danger');
+        }
+    }
 }
 
 // Function to get CSRF token
 function getCookie(name) {
-  let cookieValue = null;
-  if (document.cookie && document.cookie !== '') {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      if (cookie.substring(0, name.length + 1) === (name + '=')) {
-        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-        break;
-      }
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
     }
-  }
-  return cookieValue;
+    return cookieValue;
 }
-
-// Function to approve a voter
-async function approveVoter(voterId, voterIdString) {
-  try {
-    const response = await fetch('/api/approve-voter/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken')
-      },
-      body: JSON.stringify({
-        voter_id: voterId,
-        action: 'approve'
-      })
-    });
-    
-    const result = await response.json();
-    
-    if (result.success) {
-      showMessage(result.message, 'success');
-      // Remove the row from pending table
-      const row = document.getElementById(`voter-row-${voterId}`);
-      if (row) {
-        row.remove();
-      }
-      // Update badge counts
-      updateBadgeCounts();
-    } else {
-      showMessage(result.message, 'danger');
-    }
-  } catch (error) {
-    console.error('Error approving voter:', error);
-    showMessage('Error approving voter. Please try again.', 'danger');
-  }
-}
-
-// Function to show reject modal
-function showRejectModal(voterId, voterIdString) {
-  pendingRejectVoterId = voterId;
-  pendingRejectVoterName = voterIdString;
-  
-  document.getElementById('rejectVoterName').textContent = voterIdString;
-  document.getElementById('rejectionReason').value = '';
-  
-  const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
-  modal.show();
-}
-
-// Function to reject a voter
-async function rejectVoter() {
-  const reason = document.getElementById('rejectionReason').value;
-  
-  try {
-    const response = await fetch('/api/approve-voter/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken')
-      },
-      body: JSON.stringify({
-        voter_id: pendingRejectVoterId,
-        action: 'reject',
-        rejection_reason: reason
-      })
-    });
-    
-    const result = await response.json();
-    
-    if (result.success) {
-      showMessage(result.message, 'success');
-      // Remove the row from pending table
-      const row = document.getElementById(`voter-row-${pendingRejectVoterId}`);
-      if (row) {
-        row.remove();
-      }
-      // Hide modal
-      const modal = bootstrap.Modal.getInstance(document.getElementById('rejectModal'));
-      modal.hide();
-      // Update badge counts
-      updateBadgeCounts();
-    } else {
-      showMessage(result.message, 'danger');
-    }
-  } catch (error) {
-    console.error('Error rejecting voter:', error);
-    showMessage('Error rejecting voter. Please try again.', 'danger');
-  }
-}
-
-// Function to update badge counts
-function updateBadgeCounts() {
-  // Count remaining pending voters
-  const pendingRows = document.querySelectorAll('#pending tbody tr');
-  const pendingCount = pendingRows.length;
-  
-  // Update the badge in the tab
-  const pendingTab = document.getElementById('pending-tab');
-  if (pendingTab) {
-    pendingTab.innerHTML = `Pending Approval (${pendingCount})`;
-  }
-  
-  // Update the main header badge
-  const headerBadge = document.querySelector('#voter-approval-title .badge');
-  if (headerBadge) {
-    headerBadge.textContent = `${pendingCount} Pending`;
-  }
-}
-
-// Function to view voter details (placeholder)
-function viewVoterDetails(voterId) {
-  // This would fetch and display detailed voter information
-  // For now, just show a placeholder
-  const modal = new bootstrap.Modal(document.getElementById('voterDetailsModal'));
-  const content = document.getElementById('voterDetailsContent');
-  content.innerHTML = `
-    <div class="text-center">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading...</span>
-      </div>
-      <p class="mt-2">Loading voter details...</p>
-    </div>
-  `;
-  modal.show();
-  
-  // Simulate loading
-  setTimeout(() => {
-    content.innerHTML = `
-      <div class="alert alert-info">
-        <strong>Feature coming soon!</strong> Detailed voter information view will be implemented.
-      </div>
-    `;
-  }, 1000);
-}
-
-// Event listener for reject confirmation button
-document.getElementById('confirmRejectBtn').addEventListener('click', rejectVoter);
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('Admin dashboard loaded');
-  
-  // Any additional initialization can go here
-});
 </script>
+
 </body>
 </html>

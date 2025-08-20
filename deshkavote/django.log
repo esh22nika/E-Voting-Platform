@@ -2,3 +2,72 @@ Login attempt for voter ID: AKS1234567
 Login attempt for voter ID: AKS1234567
 Successful login for voter: AKS1234567
 Login attempt for voter ID: BLA1234567
+Login attempt for voter ID: SAM1234567
+Login attempt for voter ID: ABC1234567
+User not found: ABC1234567
+Login attempt for voter ID: ABC1234567
+User not found: ABC1234567
+Login attempt for voter ID: ABC1234567
+User not found: ABC1234567
+Login attempt for voter ID: AKS1234567
+Invalid credentials for voter: AKS1234567
+Login attempt for voter ID: AKS1234567
+Login error: NOT NULL constraint failed: voting_votersession.session_key
+Login attempt for voter ID: AKS1234567
+Invalid credentials for voter: AKS1234567
+Login attempt for voter ID: AKS1234567
+Successful login for voter: AKS1234567
+Login attempt for voter ID: ABC1234567
+User not found: ABC1234567
+Login attempt for voter ID: ABC1234567
+User not found: ABC1234567
+Login attempt for voter ID: AKS1234567
+Login error: UNIQUE constraint failed: voting_votersession.session_key
+Login attempt for voter ID: AKS1234567
+Login error: UNIQUE constraint failed: voting_votersession.session_key
+Login attempt for voter ID: AKS1234567
+Login error: UNIQUE constraint failed: voting_votersession.session_key
+Login attempt for voter ID: MOM1234567
+Login attempt for voter ID: MOM1234567
+Login error: NOT NULL constraint failed: voting_votersession.session_key
+Login attempt for voter ID: MOM1234567
+Successful login for voter: MOM1234567
+Login attempt for voter ID: SAM1234567
+Invalid credentials for voter: SAM1234567
+Login attempt for voter ID: SAM1234567
+Invalid credentials for voter: SAM1234567
+Login attempt for voter ID: SAM1234567
+Login attempt for voter ID: MOM1234567
+Login error: UNIQUE constraint failed: voting_votersession.session_key
+Login attempt for voter ID: MOM1234567
+Login error: UNIQUE constraint failed: voting_votersession.session_key
+Login attempt for voter ID: MOM1234567
+Login error: UNIQUE constraint failed: voting_votersession.session_key
+Login attempt for voter ID: MOM1234567
+Login error: UNIQUE constraint failed: voting_votersession.session_key
+Login attempt for voter ID: AKS1234567
+Login error: NOT NULL constraint failed: voting_votersession.session_key
+Login attempt for voter ID: AKS1234567
+Successful login for voter: AKS1234567
+Login attempt for voter ID: MOM1234567
+Successful login for voter: MOM1234567
+Login attempt for voter ID: AKS1234567
+Successful login for voter: AKS1234567
+Login attempt for voter ID: AKS1234567
+Successful login for voter: AKS1234567
+Login attempt for voter ID: AKS1234567
+Successful login for voter: AKS1234567
+Login attempt for voter ID: AKS1234567
+Successful login for voter: AKS1234567
+Login attempt for voter ID: AKS1234567
+Login error: UNIQUE constraint failed: voting_votersession.session_key
+Login attempt for voter ID: AKS1234567
+Login error: UNIQUE constraint failed: voting_votersession.session_key
+Login attempt for voter ID: MOM1234567
+Login error: NOT NULL constraint failed: voting_votersession.session_key
+Login attempt for voter ID: MOM1234567
+Successful login for voter: MOM1234567
+Login attempt for voter ID: AKS1234567
+Successful login for voter: AKS1234567
+Login attempt for voter ID: AKS1234567
+Successful login for voter: AKS1234567
