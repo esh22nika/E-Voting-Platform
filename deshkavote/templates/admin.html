@@ -62,7 +62,7 @@
         
         .consensus-bar {
             height: 100%;
-            background: linear-gradient(90deg, #007bff, #28a745);
+            background: linear-gradient(90deg, #f58220, #138808); /* saffron to green */
             transition: width 0.3s ease;
         }
         
@@ -114,7 +114,7 @@
             width: 20px;
             height: 20px;
             border: 2px solid #f3f3f3;
-            border-top: 2px solid #007bff;
+            border-top: 2px solid #138808; /* green */
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -146,7 +146,7 @@
 
 <div class="toast-container"></div>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+<nav class="navbar navbar-expand-lg navbar-light bg-success">
     <div class="container-fluid">
         <a class="navbar-brand" href="{% url 'landing' %}">
             <img src="{% static 'images/logo.png' %}" alt="DeshKaVote" height="40" class="me-2">
@@ -167,7 +167,7 @@
     
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card text-white bg-primary">
+            <div class="card text-white bg-warning">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
@@ -197,7 +197,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card text-white bg-info">
+            <div class="card text-white bg-warning">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
@@ -231,7 +231,7 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="system-health">
-                <h5><i class="fas fa-heartbeat text-success"></i> Distributed System Status</h5>
+                <h5><i class="fas fa-heartbeat text-success"></i> Overall System Status</h5>
                 <div class="row">
                     <div class="col-md-8">
                         <div class="node-grid" id="nodeGrid">

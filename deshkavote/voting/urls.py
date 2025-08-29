@@ -46,4 +46,5 @@ websocket_urlpatterns = [
     path('ws/election/<uuid:election_id>/', consumers.ElectionConsumer.as_asgi(), name='ws_election'),
     path('ws/vote/<uuid:vote_id>/', consumers.VoteConsumer.as_asgi(), name='ws_vote'),
     path('ws/admin/', consumers.AdminConsumer.as_asgi(), name='ws_admin'),
+    path('ws/voter/', consumers.VoterConsumer.as_asgi(), name='ws_voter'),  # Add this line
 ]

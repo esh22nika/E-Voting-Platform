@@ -71,3 +71,48 @@ Login attempt for voter ID: AKS1234567
 Successful login for voter: AKS1234567
 Login attempt for voter ID: AKS1234567
 Successful login for voter: AKS1234567
+Login attempt for voter ID: AKS1234567
+Successful login for voter: AKS1234567
+Login attempt for voter ID: AKS1234567
+Successful login for voter: AKS1234567
+Login attempt for voter ID: ABC1234567
+Login attempt for voter ID: ABC1234567
+Successful login for voter: ABC1234567
+Login attempt for voter ID: AKS1234567
+Successful login for voter: AKS1234567
+Login attempt for voter ID: ABC1234567
+Successful login for voter: ABC1234567
+Login attempt for voter ID: ABC1234567
+Successful login for voter: ABC1234567
+Login attempt for voter ID: ABC1234567
+Successful login for voter: ABC1234567
+Login attempt for voter ID: ABC1234567
+Successful login for voter: ABC1234567
+Login attempt for voter ID: ABC1234567
+Successful login for voter: ABC1234567
+Vote casting attempt by ABC1234567: {'election_id': '${electionId}', 'candidate_id': '${candidate.id}'}
+Error casting vote: ['“${candidate.id}” is not a valid UUID.']
+Vote casting attempt by ABC1234567: {'election_id': '${electionId}', 'candidate_id': '${candidate.id}'}
+Error casting vote: ['“${candidate.id}” is not a valid UUID.']
+Vote casting attempt by ABC1234567: {'election_id': '${electionId}', 'candidate_id': '${candidate.id}'}
+Error casting vote: ['“${candidate.id}” is not a valid UUID.']
+Vote casting attempt by ABC1234567: {'election_id': '${electionId}', 'candidate_id': '${candidate.id}'}
+Error casting vote: ['“${candidate.id}” is not a valid UUID.']
+Login attempt for voter ID: ABC1234567
+Successful login for voter: ABC1234567
+Login attempt for voter ID: ABC1234567
+Successful login for voter: ABC1234567
+Login attempt for voter ID: AKS1234567
+Invalid credentials for voter: AKS1234567
+Login attempt for voter ID: AKS1234567
+Successful login for voter: AKS1234567
+Login attempt for voter ID: ABC1234567
+Successful login for voter: ABC1234567
+Login attempt for voter ID: SAM1234567
+Successful login for voter: SAM1234567
+Login attempt for voter ID: ABC1234567
+Successful login for voter: ABC1234567
+Login attempt for voter ID: ABC1234567
+Successful login for voter: ABC1234567
+Vote casting attempt by ABC1234567: {'election_id': '6734570c-426a-4d41-8db8-fd145dbd7b36', 'candidate_id': '357257b4-02ff-4d41-bdb6-5de3dbfee222'}
+Vote created: ec4b1449-4d35-4e75-ab7b-22ffd5148cc5

@@ -108,6 +108,90 @@ class VoteConsumer(AsyncWebsocketConsumer):
             'data': event['data']
         }))
 
+class VoterConsumer(AsyncWebsocketConsumer):
+    """WebSocket consumer for general voter notifications"""
+
+    async def connect(self):
+        user = self.scope.get('user')
+        if user is None or isinstance(user, AnonymousUser):
+            await self.close()
+            return
+
+        # Check if user is a voter
+        if user.role != 'voter':
+            await self.close()
+            return
+
+        # Get voter instance
+        try:
+            voter = await self.get_voter(user)
+            if not voter:
+                await self.close()
+                return
+        except Exception:
+            await self.close()
+            return
+
+        self.voter_group_name = f'voter_{user.id}'
+
+        await self.channel_layer.group_add(
+            self.voter_group_name,
+            self.channel_name
+        )
+        await self.accept()
+        
+        # Send connection confirmation
+        await self.send(text_data=json.dumps({
+            'type': 'connection_status',
+            'message': 'Connected to voter updates'
+        }))
+
+    async def disconnect(self, close_code):
+        if hasattr(self, 'voter_group_name'):
+            await self.channel_layer.group_discard(
+                self.voter_group_name,
+                self.channel_name
+            )
+
+    async def receive(self, text_data):
+        """Handle messages from WebSocket"""
+        try:
+            text_data_json = json.loads(text_data)
+            message = text_data_json.get('message', '')
+            
+            # Echo back the message for testing
+            await self.send(text_data=json.dumps({
+                'type': 'echo',
+                'message': f'Received: {message}'
+            }))
+        except json.JSONDecodeError:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'Invalid JSON received'
+            }))
+
+    @database_sync_to_async
+    def get_voter(self, user):
+        """Get voter instance for the user"""
+        try:
+            return Voter.objects.get(user=user)
+        except Voter.DoesNotExist:
+            return None
+
+    async def send_voter_notification(self, event):
+        """Send notification to voter"""
+        await self.send(text_data=json.dumps({
+            'type': 'voter_notification',
+            'data': event['data']
+        }))
+
+    async def send_vote_update(self, event):
+        """Send vote update to voter"""
+        await self.send(text_data=json.dumps({
+            'type': 'vote_update',
+            'data': event['data']
+        }))
+
 class AdminConsumer(AsyncWebsocketConsumer):
     """WebSocket consumer for real-time admin dashboard updates"""
 

@@ -3,6 +3,10 @@
 
 {% block title %}Voter Dashboard - DeshKaVote{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/voter.css' %}">
+{% endblock %}
+
 {% block content %}
 <header class="bg-success text-white py-3">
   <div class="container">
@@ -136,57 +140,54 @@
     </div>
   {% else %}
     <div class="row mb-4">
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <div class="display-6 text-primary mb-2">🗳️</div>
-            <h5 class="card-title">Available Elections</h5>
-            <p class="card-text display-6">{{ elections_data|length }}</p>
-          </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-6 text-primary mb-2">🗳️</div>
+                    <h5 class="card-title">Available Elections</h5>
+                    <p class="card-text display-6">{{ elections_data|length }}</p>
+                </div>
+            </div>
         </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <div class="display-6 text-success mb-2">📊</div>
-            <h5 class="card-title">Active Elections</h5>
-            <p class="card-text display-6">{{ elections_data|length }}</p>
-          </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-6 text-success mb-2">📊</div>
+                    <h5 class="card-title">Active Elections</h5>
+                    <p class="card-text display-6">{{ active_elections_count }}</p>
+                </div>
+            </div>
         </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <div class="display-6 text-info mb-2">✅</div>
-            <h5 class="card-title">Votes Cast</h5>
-            <p class="card-text display-6">0</p>
-          </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-6 text-info mb-2">✅</div>
+                    <h5 class="card-title">Votes Cast</h5>
+                    <p class="card-text display-6" id="votesCastedCount">{{ votes_casted_count }}</p>
+                </div>
+            </div>
         </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <div class="display-6 text-warning mb-2">👤</div>
-            <h5 class="card-title">Profile Status</h5>
-            <p class="card-text"><span class="badge bg-success">Approved</span></p>
-          </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-6 text-warning mb-2">👤</div>
+                    <h5 class="card-title">Profile Status</h5>
+                    <p class="card-text"><span class="badge bg-success">Approved</span></p>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
 
     <div class="row" id="elections">
       <div class="col-12">
-        <div class="card">
+        <div class="card shadow-sm">
           <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="card-title mb-0">Available Elections</h5>
-            <button class="btn btn-outline-primary btn-sm" onclick="location.reload()">
-              🔄 Refresh
-            </button>
           </div>
           <div class="card-body">
             {% if elections_data %}
               {% for election_info in elections_data %}
-                <div class="border rounded p-3 mb-3">
+                <div class="border rounded p-3 mb-3 election-container" data-election-id="{{ election_info.election.id }}">
                   <div class="row align-items-center">
                     <div class="col-md-8">
                       <h6 class="mb-1">{{ election_info.election.name }}</h6>
@@ -195,13 +196,16 @@
                         📅 {{ election_info.election.start_date|date:"M d, Y H:i" }} - {{ election_info.election.end_date|date:"M d, Y H:i" }}
                       </small>
                     </div>
-                    <div class="col-md-4 text-md-end">
+                    <div class="col-md-4 text-md-end" id="election-actions-{{ election_info.election.id }}">
                       {% if election_info.has_voted %}
-                        <span class="badge bg-secondary mb-2">Voted</span>
+                        <div class="d-flex justify-content-end align-items-center voted-container">
+                            <span class="text-success fw-bold me-2">✅ Voted</span>
+                            <button class="btn btn-outline-secondary btn-sm" disabled>Vote Cast</button>
+                        </div>
                       {% elif election_info.is_active %}
                         <span class="badge bg-success mb-2">Active</span><br>
-                        <button class="btn btn-primary btn-sm" onclick="startVoting('{{ election_info.election.id }}')">
-                          🗳️ Vote Now
+                        <button type="button" class="btn btn-primary vote-btn" data-election-id="{{ election_info.election.id }}" data-election-name="{{ election_info.election.name|escapejs }}">
+                          Vote Now 🗳️
                         </button>
                       {% else %}
                         <span class="badge bg-secondary mb-2">Upcoming</span><br>
@@ -217,118 +221,120 @@
               <div class="text-center py-4">
                 <div class="display-1 text-muted mb-3">🗳️</div>
                 <h5 class="text-muted">No Elections Available</h5>
-                <p class="text-muted">There are currently no elections available for voting.</p>
+                <p class="text-muted">There are currently no elections available for your constituency.</p>
               </div>
             {% endif %}
           </div>
         </div>
       </div>
     </div>
-
+    
     <div class="row mt-4" id="profile">
-      <div class="col-md-8">
-        <div class="card">
-          <div class="card-header">
-            <h5 class="card-title mb-0">Your Profile</h5>
-          </div>
-          <div class="card-body">
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label text-muted">Full Name</label>
-                <p class="mb-0">{{ voter.full_name }}</p>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label text-muted">Voter ID</label>
-                <p class="mb-0">{{ voter.voter_id }}</p>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label text-muted">Email</label>
-                <p class="mb-0">{{ voter.email }}</p>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label text-muted">Mobile</label>
-                <p class="mb-0">{{ voter.mobile }}</p>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label text-muted">Date of Birth</label>
-                <p class="mb-0">{{ voter.date_of_birth|date:"F d, Y" }}</p>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label text-muted">Gender</label>
-                <p class="mb-0">{{ voter.gender }}</p>
-              </div>
-              <div class="col-md-12 mb-3">
-                <label class="form-label text-muted">Address</label>
-                <p class="mb-0">{{ voter.street_address }}, {{ voter.city }}, {{ voter.state }} - {{ voter.pincode }}</p>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label text-muted">Registration Date</label>
-                <p class="mb-0">{{ voter.created_at|date:"F d, Y" }}</p>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label text-muted">Approval Date</label>
-                <p class="mb-0">{{ voter.approval_date|date:"F d, Y" }}</p>
-              </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Your Profile</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Full Name</label>
+                            <p class="mb-0">{{ voter.full_name }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Voter ID</label>
+                            <p class="mb-0">{{ voter.voter_id }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Email</label>
+                            <p class="mb-0">{{ voter.email }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Mobile</label>
+                            <p class="mb-0">{{ voter.mobile }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Date of Birth</label>
+                            <p class="mb-0">{{ voter.date_of_birth|date:"F d, Y" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Gender</label>
+                            <p class="mb-0">{{ voter.gender }}</p>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label text-muted">Address</label>
+                            <p class="mb-0">{{ voter.street_address }}, {{ voter.city }}, {{ voter.state }} - {{ voter.pincode }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Registration Date</label>
+                            <p class="mb-0">{{ voter.created_at|date:"F d, Y" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Approval Date</label>
+                            <p class="mb-0">{{ voter.approval_date|date:"F d, Y" }}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card">
-          <div class="card-header">
-            <h5 class="card-title mb-0">Verification Status</h5>
-          </div>
-          <div class="card-body">
-            <div class="mb-3">
-              <div class="d-flex justify-content-between align-items-center">
-                <span>Aadhar Verification</span>
-                <span class="badge {% if voter.aadhar_verified %}bg-success{% else %}bg-warning{% endif %}">
-                  {% if voter.aadhar_verified %}✅ Verified{% else %}⏳ Pending{% endif %}
-                </span>
-              </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Verification Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>Aadhar Verification</span>
+                            <span class="badge {% if voter.aadhar_verified %}bg-success{% else %}bg-warning{% endif %}">
+                                {% if voter.aadhar_verified %}✅ Verified{% else %}⏳ Pending{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>PAN Verification</span>
+                            <span class="badge {% if voter.pan_verified %}bg-success{% else %}bg-warning{% endif %}">
+                                {% if voter.pan_verified %}✅ Verified{% else %}⏳ Pending{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>Voter ID Verification</span>
+                            <span class="badge {% if voter.voter_id_verified %}bg-success{% else %}bg-warning{% endif %}">
+                                {% if voter.voter_id_verified %}✅ Verified{% else %}⏳ Pending{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <span class="badge {% if voter.is_fully_verified %}bg-success{% else %}bg-warning{% endif %} fs-6">
+                            {% if voter.is_fully_verified %}
+                                ✅ Fully Verified
+                            {% else %}
+                                ⏳ Verification Pending
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
             </div>
-            <div class="mb-3">
-              <div class="d-flex justify-content-between align-items-center">
-                <span>PAN Verification</span>
-                <span class="badge {% if voter.pan_verified %}bg-success{% else %}bg-warning{% endif %}">
-                  {% if voter.pan_verified %}✅ Verified{% else %}⏳ Pending{% endif %}
-                </span>
-              </div>
-            </div>
-            <div class="mb-3">
-              <div class="d-flex justify-content-between align-items-center">
-                <span>Voter ID Verification</span>
-                <span class="badge {% if voter.voter_id_verified %}bg-success{% else %}bg-warning{% endif %}">
-                  {% if voter.voter_id_verified %}✅ Verified{% else %}⏳ Pending{% endif %}
-                </span>
-              </div>
-            </div>
-            <hr>
-            <div class="text-center">
-              <span class="badge {% if voter.is_fully_verified %}bg-success{% else %}bg-warning{% endif %} fs-6">
-                {% if voter.is_fully_verified %}
-                  ✅ Fully Verified
-                {% else %}
-                  ⏳ Verification Pending
-                {% endif %}
-              </span>
-            </div>
-          </div>
         </div>
-      </div>
     </div>
   {% endif %}
 </main>
 
+<!-- Voting Modal -->
 <div class="modal fade" id="votingModal" tabindex="-1" aria-labelledby="votingModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="votingModalLabel">Cast Your Vote</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="votingModalLabel">🗳️ Cast Your Vote</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" id="votingContent">
-                </div>
+                <!-- Content will be loaded here -->
+            </div>
         </div>
     </div>
 </div>
@@ -336,150 +342,9 @@
 <footer class="bg-success text-white text-center py-3 mt-5">
   &copy; 2025 DeshKaVote. All rights reserved.
 </footer>
+{% endblock %}
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-    // Global variables
-    let voterWebSocket = null;
-
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize WebSocket connection for the voter
-        initializeVoterWebSocket();
-    });
-
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-    
-    function initializeVoterWebSocket() {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // Connect to a placeholder voter WebSocket endpoint for now
-        // This will be dynamic for each vote cast.
-        voterWebSocket = new WebSocket(`${protocol}//${window.location.host}/ws/voter/`);
-    
-        voterWebSocket.onopen = function(event) {
-            console.log('Voter WebSocket connected');
-        };
-    
-        voterWebSocket.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            handleVoterWebSocketMessage(data);
-        };
-    
-        voterWebSocket.onclose = function(event) {
-            console.log('Voter WebSocket disconnected');
-        };
-    
-        voterWebSocket.onerror = function(event) {
-            console.error('Voter WebSocket error:', event);
-        };
-    }
-    
-    function handleVoterWebSocketMessage(data) {
-        if (data.type === 'vote_update') {
-            alert(`Vote Status: ${data.data.status}. Your vote has been verified!`);
-        }
-    }
-    
-    async function startVoting(electionId) {
-        const modal = new bootstrap.Modal(document.getElementById('votingModal'));
-        const content = document.getElementById('votingContent');
-        
-        content.innerHTML = `
-            <div class="text-center">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-2">Loading candidates for election...</p>
-            </div>
-        `;
-        
-        modal.show();
-        
-        try {
-            // Fetch candidates for the selected election
-            const response = await fetch(`/api/candidates/${electionId}/`);
-            const data = await response.json();
-            
-            if (data.success) {
-                const candidatesHtml = data.candidates.map(candidate => `
-                    <div class="card mb-3">
-                        <div class="card-body d-flex justify-content-between align-items-center">
-                            <div>
-                                <h5 class="card-title mb-0">${candidate.name}</h5>
-                                <p class="card-text text-muted mb-0">${candidate.party}</p>
-                            </div>
-                            <button class="btn btn-primary" onclick="castVote('${electionId}', '${candidate.id}')">Vote</button>
-                        </div>
-                    </div>
-                `).join('');
-                
-                content.innerHTML = `
-                    <h5 class="mb-4">Select your candidate</h5>
-                    <form id="voteForm">
-                        ${candidatesHtml}
-                    </form>
-                `;
-            } else {
-                content.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
-            }
-        } catch (error) {
-            content.innerHTML = `<div class="alert alert-danger">An error occurred while loading candidates.</div>`;
-        }
-    }
-    
-    async function castVote(electionId, candidateId) {
-        if (!confirm('Are you sure you want to cast your vote? This cannot be undone.')) {
-            return;
-        }
-    
-        try {
-            const response = await fetch('/api/cast-vote/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({ election_id: electionId, candidate_id: candidateId })
-            });
-    
-            const result = await response.json();
-            
-            const modalBody = document.getElementById('votingContent');
-            if (result.success) {
-                modalBody.innerHTML = `
-                    <div class="alert alert-success">
-                        <h4 class="alert-heading">Vote Cast Successfully!</h4>
-                        <p>${result.message}</p>
-                        <hr>
-                        <p class="mb-0">Your vote ID is ${result.vote_id}. You will be notified when it is verified.</p>
-                    </div>
-                `;
-                
-                // Close the modal after a few seconds
-                setTimeout(() => {
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('votingModal'));
-                    modal.hide();
-                    location.reload();
-                }, 5000);
-            } else {
-                modalBody.innerHTML = `<div class="alert alert-danger">${result.message}</div>`;
-            }
-        } catch (error) {
-            const modalBody = document.getElementById('votingContent');
-            modalBody.innerHTML = `<div class="alert alert-danger">An error occurred while casting your vote.</div>`;
-        }
-    }
-</script>
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{% static 'js/voter.js' %}"></script>
 {% endblock %}

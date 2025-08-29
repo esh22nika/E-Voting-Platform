@@ -31,12 +31,14 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',  # ADD THIS LINE
     'voting',
 ]
 
@@ -117,6 +119,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # Add this line
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -124,12 +127,11 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 # Login URLs
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/voter/'
 LOGOUT_REDIRECT_URL = '/'
-
-# Add these to your existing settings.py file
 
 # Logging Configuration
 LOGGING = {
@@ -181,10 +183,6 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Email Configuration (for future use - notifications)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For development
 
-# settings.py
-
-# ... (rest of your settings)
-
 # Django Channels Configuration
 ASGI_APPLICATION = 'deshkavote.asgi.application'
 
@@ -193,6 +191,8 @@ CHANNEL_LAYERS = {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
             'hosts': [('127.0.0.1', 6379)],
+            "capacity": 1500,
+            "expiry": 10,
         },
     },
 }
@@ -203,21 +203,21 @@ CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'Asia/Kolkata' # Or your desired timezone
+CELERY_TIMEZONE = 'Asia/Kolkata'
 
-# Caching Configuration (Redis)
+# Caching Configuration - UPDATED TO USE REDIS AS PRIMARY
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-    },
-    'redis': {
         'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': 'redis://127.0.0.1:6379/1',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         },
+        'KEY_PREFIX': 'deshkavote',
+        'TIMEOUT': 300,  # 5 minutes default
     }
 }
 
-# Optional: To use Redis as the primary cache
-# CACHE_MIDDLEWARE_ALIAS = 'redis'
+# Session configuration to use Redis cache
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'

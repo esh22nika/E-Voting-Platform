@@ -1,0 +1,196 @@
+/* Animation styles for voting interactions */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes voteSuccess {
+    0% { 
+        opacity: 0; 
+        transform: translateY(20px) scale(0.8); 
+    }
+    50% { 
+        opacity: 1; 
+        transform: translateY(-5px) scale(1.05); 
+    }
+    100% { 
+        opacity: 1; 
+        transform: translateY(0) scale(1); 
+    }
+}
+
+@keyframes counterUpdate {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); color: #198754; }
+    100% { transform: scale(1); }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Candidate card hover effects */
+.candidate-card:hover {
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+}
+
+/* Vote button styles */
+.vote-btn {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.vote-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,123,255,0.3);
+}
+
+.vote-btn:active {
+    transform: translateY(0);
+    transition: transform 0.1s;
+}
+
+/* Candidate vote button styles */
+.candidate-vote-btn {
+    transition: all 0.3s ease;
+}
+
+.candidate-vote-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(25,135,84,0.3);
+}
+
+/* Voted container styles */
+.voted-container {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    padding: 10px;
+    border-radius: 8px;
+    border: 2px solid #198754;
+    position: relative;
+}
+
+.voted-container::before {
+    content: "🎉";
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    font-size: 1.2em;
+    animation: pulse 2s infinite;
+}
+
+/* Election container hover effect */
+.election-container:hover {
+    background-color: #f8f9fa;
+    transition: background-color 0.3s ease;
+}
+
+/* Modal enhancements */
+.modal-content {
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.modal-header {
+    border-bottom: none;
+    padding: 1.5rem;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+/* SweetAlert2 custom styles */
+.swal2-popup {
+    border-radius: 15px !important;
+}
+
+.swal2-title {
+    font-size: 1.5rem !important;
+}
+
+/* Loading spinner enhancement */
+.spinner-border {
+    animation: spinner-border 0.75s linear infinite, pulse 2s ease-in-out infinite;
+}
+
+/* Badge enhancements */
+.badge {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 50px;
+}
+
+/* Card hover effects for stats */
+.card:hover {
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+/* Button loading state */
+.btn-loading {
+    pointer-events: none;
+    opacity: 0.65;
+}
+
+.btn-loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spinner-border 0.75s linear infinite;
+}
+
+/* Success animation for the entire election row */
+.election-voted {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    border: 2px solid #198754 !important;
+    animation: voteSuccess 0.8s ease-in-out;
+}
+
+/* Custom scrollbar for modal */
+.modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .candidate-card .row {
+        text-align: center;
+    }
+    
+    .candidate-card .col-md-4 {
+        margin-top: 1rem;
+    }
+    
+    .voted-container {
+        justify-content: center !important;
+    }
+}
