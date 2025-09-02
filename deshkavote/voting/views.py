@@ -548,13 +548,14 @@ def admin_dashboard(request):
     rejected_voters = Voter.objects.filter(approval_status='rejected').order_by('-updated_at')
     elections = Election.objects.all().order_by('-created_at')
     candidates = Candidate.objects.all().order_by('-created_at')
-    
+
+    # --- START OF MODIFIED LOGIC ---
     # Calculate vote counts and leading candidate for each election
     for election in elections:
         if election.status in ['active', 'completed']:
+            # Temporarily removed status='finalized' to show all votes
             vote_counts = Vote.objects.filter(
-                election=election,
-                status='finalized'  # Important: Only count verified votes
+                election=election
             ).values(
                 'candidate__name', 
                 'candidate__party'
@@ -572,6 +573,7 @@ def admin_dashboard(request):
             else:
                 election.leading_candidate = None
                 election.leading_votes = 0
+    # --- END OF MODIFIED LOGIC ---
 
     stats = {
         'pending_count': pending_voters.count(),
