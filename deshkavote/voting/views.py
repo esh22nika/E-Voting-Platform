@@ -9,17 +9,19 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from django.db import transaction
+from django.db import transaction, models
+from django.db.models import Count
 from django.core.cache import cache
 from django.conf import settings
 from datetime import datetime, timedelta
 import json
 import logging
 import hashlib
-import time
+import time,random
 import asyncio
 from decimal import Decimal
 import uuid
+import csv
 
 # Import Django Channels libraries
 from asgiref.sync import async_to_sync
@@ -285,12 +287,24 @@ def register_voter(request):
                     details={'voter_id': data['voterId'], 'city': data['city'], 'state': data['state']},
                     request=request
                 )
+                
+                # Notify admin via websockets
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    "admin_dashboard", {
+                        "type": "send_admin_update",
+                        "data": {
+                            "type": "new_registration",
+                            "message": f"New voter registration: {voter.full_name}"
+                        }
+                    }
+                )
 
                 cache.delete('election_stats')
 
                 return JsonResponse({
                     'success': True,
-                    'message': 'Registration successful! Your account is pending approval.'
+                    'message': 'Registration successful! Your account is pending approval. You will be notified once approved.'
                 })
 
         except Exception as e:
@@ -327,7 +341,17 @@ def login_user(request):
 
             try:
                 user = CustomUser.objects.get(username=voter_id)
+                
+                # Lockout mechanism
+                if user.is_locked and user.lock_time and timezone.now() < user.lock_time + timedelta(minutes=15):
+                     return JsonResponse({
+                        'success': False,
+                        'message': 'Account is temporarily locked. Please try again later.'
+                    })
+
                 if user.check_password(password) and user.role == 'voter':
+                    user.failed_login_attempts = 0
+                    user.is_locked = False
                     user.last_login_ip = request.META.get('REMOTE_ADDR')
                     user.save()
 
@@ -336,25 +360,36 @@ def login_user(request):
                         if voter.approval_status == 'pending':
                             return JsonResponse({
                                 'success': False,
-                                'message': 'Your account is pending approval.',
-                                'status': 'pending_approval'
+                                'message': 'Your account is pending approval. Please wait for admin approval.',
+                                'pending_approval': True
                             })
                         elif voter.approval_status == 'rejected':
                             return JsonResponse({
                                 'success': False,
-                                'message': f'Your account has been rejected. Reason: {voter.rejection_reason or "Contact admin"}',
-                                'status': 'rejected'
+                                'message': f'Your account has been rejected. Reason: {voter.rejection_reason or "Contact admin for details"}'
                             })
                         elif voter.approval_status == 'approved' and user.is_active:
                             login(request, user)
 
+                            # Create voter session
                             if not request.session.session_key:
                                 request.session.create()
+                            
+                            session_key = request.session.session_key
+                            device_fingerprint = hashlib.md5(request.META.get('HTTP_USER_AGENT', '').encode()).hexdigest()
+                            
+                            VoterSession.objects.create(
+                                voter=voter,
+                                session_key=session_key,
+                                ip_address=user.last_login_ip,
+                                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                                device_fingerprint=device_fingerprint
+                            )
 
                             create_audit_log(
                                 'voter_login',
                                 user=user,
-                                details={'voter_id': voter_id},
+                                details={'voter_id': voter_id, 'session_id': VoterSession.objects.latest('created_at').id},
                                 request=request
                             )
 
@@ -367,8 +402,7 @@ def login_user(request):
                         else:
                             return JsonResponse({
                                 'success': False,
-                                'message': 'Account not activated. Please contact admin.',
-                                'status': 'not_activated'
+                                'message': 'Account not activated. Please contact admin.'
                             })
                     except Voter.DoesNotExist:
                         return JsonResponse({
@@ -376,6 +410,12 @@ def login_user(request):
                             'message': 'Voter profile not found'
                         })
                 else:
+                    user.failed_login_attempts += 1
+                    if user.failed_login_attempts >= 5:
+                        user.is_locked = True
+                        user.lock_time = timezone.now()
+                    user.save()
+                    
                     logger.warning(f"Invalid credentials for voter: {voter_id}")
                     return JsonResponse({
                         'success': False,
@@ -388,6 +428,8 @@ def login_user(request):
                     'message': 'Invalid Voter ID or password'
                 })
 
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'message': 'Invalid JSON data'})
         except Exception as e:
             logger.error(f"Login error: {str(e)}")
             return JsonResponse({
@@ -396,25 +438,34 @@ def login_user(request):
             })
 
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
-
+    
 def admin_login_page(request):
     """Admin login page view"""
     return render(request, 'admin_login.html')
 
 @csrf_exempt
 def admin_auth(request):
-    """Admin authentication"""
+    """Enhanced admin authentication"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            username = data['username']
-            password = data['password']
+            username = data.get('username')
+            password = data.get('password')
 
             user = authenticate(request, username=username, password=password)
 
             if user is not None and (user.is_staff or user.role == 'admin'):
                 login(request, user)
-                create_audit_log('admin_login', user=user, details={'admin_username': username}, request=request)
+                
+                # Log the admin login
+                create_audit_log(
+                    'admin_action',
+                    user=user,
+                    details={'action': 'admin_login', 'admin_username': username},
+                    request=request
+                )
+                
+                logger.info(f"Admin '{username}' logged in.")
                 
                 return JsonResponse({
                     'success': True,
@@ -428,6 +479,7 @@ def admin_auth(request):
                 })
 
         except Exception as e:
+            logger.error(f"Admin login failed: {e}")
             return JsonResponse({
                 'success': False,
                 'message': f'Login failed: {str(e)}'
@@ -453,20 +505,26 @@ def voter_dashboard(request):
             return render(request, 'voter.html', context)
 
         # Get eligible elections
-        eligible_elections = voter.get_eligible_elections()
-        voted_elections = Vote.objects.filter(voter=voter).values_list('election_id', flat=True)
+        cache_key = f"voter_elections_{voter.id}"
+        elections_data = cache.get(cache_key)
+        
+        if not elections_data:
+            eligible_elections = voter.get_eligible_elections()
+            voted_elections = Vote.objects.filter(voter=voter).values_list('election_id', flat=True)
 
-        elections_data = []
-        for election in eligible_elections:
-            candidates = Candidate.objects.filter(election=election, is_verified=True)
-            has_voted = election.id in voted_elections
+            elections_data = []
+            for election in eligible_elections:
+                candidates = Candidate.objects.filter(election=election, is_verified=True)
+                has_voted = election.id in voted_elections
 
-            elections_data.append({
-                'election': election,
-                'candidates': candidates,
-                'has_voted': has_voted,
-                'is_active': election.status == 'active' and not has_voted
-            })
+                elections_data.append({
+                    'election': election,
+                    'candidates': candidates,
+                    'has_voted': has_voted,
+                    'is_active': election.status == 'active' and not has_voted
+                })
+            
+            cache.set(cache_key, elections_data, timeout=600)
 
         context = {
             'voter': voter,
@@ -481,7 +539,7 @@ def voter_dashboard(request):
 
 @login_required
 def admin_dashboard(request):
-    """Enhanced admin dashboard"""
+    """Enhanced admin dashboard with comprehensive voter management"""
     if not (request.user.is_staff or request.user.role == 'admin'):
         return redirect('landing')
 
@@ -490,6 +548,30 @@ def admin_dashboard(request):
     rejected_voters = Voter.objects.filter(approval_status='rejected').order_by('-updated_at')
     elections = Election.objects.all().order_by('-created_at')
     candidates = Candidate.objects.all().order_by('-created_at')
+    
+    # Calculate vote counts and leading candidate for each election
+    for election in elections:
+        if election.status in ['active', 'completed']:
+            vote_counts = Vote.objects.filter(
+                election=election,
+                status='finalized'  # Important: Only count verified votes
+            ).values(
+                'candidate__name', 
+                'candidate__party'
+            ).annotate(
+                vote_count=Count('id')
+            ).order_by('-vote_count')
+
+            if vote_counts:
+                leading_candidate_data = vote_counts[0]
+                election.leading_candidate = {
+                    'name': leading_candidate_data['candidate__name'],
+                    'party': leading_candidate_data['candidate__party']
+                }
+                election.leading_votes = leading_candidate_data['vote_count']
+            else:
+                election.leading_candidate = None
+                election.leading_votes = 0
 
     stats = {
         'pending_count': pending_voters.count(),
@@ -498,6 +580,9 @@ def admin_dashboard(request):
         'total_elections': elections.count(),
         'active_elections': elections.filter(status='active').count(),
         'total_candidates': candidates.count(),
+        'active_nodes': ElectionNode.objects.filter(status='active').count(),
+        'total_nodes': ElectionNode.objects.count(),
+        'system_health': 99.8, # Placeholder
     }
 
     context = {
@@ -560,6 +645,13 @@ def cast_vote(request):
                         'success': False,
                         'message': 'Election is not currently active'
                     })
+                
+                eligible_elections_ids = [e.id for e in voter.get_eligible_elections()]
+                if election.id not in eligible_elections_ids:
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'You are not eligible to vote in this election'
+                    })
 
                 # Check if voter has already voted
                 if Vote.objects.filter(voter=voter, election=election).exists():
@@ -597,10 +689,22 @@ def cast_vote(request):
 
                 cache.delete(f"voter_elections_{voter.id}")
                 cache.delete('election_stats')
+                
+                # Notify admin dashboard via websockets
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    "admin_dashboard", {
+                        "type": "send_admin_update",
+                        "data": {
+                            "type": "new_vote",
+                            "message": f"New vote cast in {election.name}"
+                        }
+                    }
+                )
 
                 return JsonResponse({
                     'success': True,
-                    'message': 'Vote cast successfully! Your vote is being verified.',
+                    'message': 'Vote cast successfully! Your vote is being verified through our distributed consensus system.',
                     'vote_id': str(vote.id)
                 })
 
@@ -612,6 +716,214 @@ def cast_vote(request):
             })
 
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
+
+# --- NEW API VIEWS START HERE ---
+
+@require_GET
+@login_required
+def admin_stats(request):
+    stats = {
+        'pending_count': Voter.objects.filter(approval_status='pending').count(),
+        'approved_count': Voter.objects.filter(approval_status='approved').count(),
+        'rejected_count': Voter.objects.filter(approval_status='rejected').count(),
+        'active_elections': Election.objects.filter(status='active').count(),
+        'system_health': 99.8,  # Placeholder
+        'active_nodes': ElectionNode.objects.filter(status='active').count(),
+        'total_nodes': ElectionNode.objects.count(),
+    }
+    return JsonResponse({'success': True, 'stats': stats})
+
+@require_GET
+@login_required
+def get_audit_logs(request):
+    log_type = request.GET.get('type')
+    date = request.GET.get('date')
+    
+    logs = AuditLog.objects.all().order_by('-timestamp')
+    if log_type:
+        logs = logs.filter(log_type=log_type)
+    if date:
+        logs = logs.filter(timestamp__date=date)
+        
+    data = [{
+        'timestamp': log.timestamp,
+        'log_type': log.log_type,
+        'user': log.user.username if log.user else 'System',
+        'details': json.dumps(log.details),
+        'ip_address': log.ip_address,
+        'hash_chain': log.hash_chain,
+    } for log in logs[:100]] # Limit to 100 most recent
+    
+    return JsonResponse({'success': True, 'logs': data})
+
+@require_GET
+@login_required
+def export_audit_logs(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="audit_logs.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['Timestamp', 'Type', 'User', 'Details', 'IP Address', 'Hash'])
+    
+    logs = AuditLog.objects.all().order_by('-timestamp')
+    for log in logs:
+        writer.writerow([
+            log.timestamp,
+            log.log_type,
+            log.user.username if log.user else 'System',
+            json.dumps(log.details),
+            log.ip_address,
+            log.hash_chain
+        ])
+        
+    return response
+
+@require_GET
+@login_required
+def get_election_statistics(request):
+    stats = {
+        'active': Election.objects.filter(status='active').count(),
+        'upcoming': Election.objects.filter(status='upcoming').count(),
+        'completed': Election.objects.filter(status='completed').count(),
+    }
+    return JsonResponse({'success': True, 'stats': stats})
+
+@require_GET
+@login_required
+def get_voter_details(request, voter_id):
+    voter = get_object_or_404(Voter, id=voter_id)
+    data = {
+        'voter_id': voter.voter_id,
+        'full_name': voter.full_name,
+        'email': voter.email,
+        'mobile': voter.mobile,
+        'date_of_birth': voter.date_of_birth,
+        'gender': voter.gender,
+        'street_address': voter.street_address,
+        'city': voter.city,
+        'state': voter.state,
+        'pincode': voter.pincode,
+        'approval_status': voter.approval_status,
+    }
+    return JsonResponse({'success': True, 'voter': data})
+
+@require_GET
+@login_required
+def get_candidate_details(request, candidate_id):
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    data = {
+        'name': candidate.name,
+        'party': candidate.party,
+        'constituency': candidate.constituency,
+        'symbol': candidate.symbol,
+        'education': candidate.education,
+        'is_verified': candidate.is_verified,
+        'election_name': candidate.election.name,
+    }
+    return JsonResponse({'success': True, 'candidate': data})
+
+@require_GET
+@login_required
+def get_election_details(request, election_id):
+    election = get_object_or_404(Election, id=election_id)
+    data = {
+        'name': election.name,
+        'election_type': election.election_type,
+        'state': election.state,
+        'status': election.status,
+        'start_date': election.start_date,
+        'end_date': election.end_date,
+        'candidates_count': election.candidates.count(),
+        'total_votes': Vote.objects.filter(election=election, status='finalized').count(),
+    }
+    return JsonResponse({'success': True, 'election': data})
+
+@require_GET
+@login_required
+def get_election_results(request, election_id):
+    election = get_object_or_404(Election, id=election_id)
+    vote_counts = Vote.objects.filter(
+        election=election,
+        status='finalized'
+    ).values(
+        'candidate__name', 
+        'candidate__party'
+    ).annotate(
+        vote_count=Count('id')
+    ).order_by('-vote_count')
+    
+    return JsonResponse({'success': True, 'results': list(vote_counts)})
+
+@csrf_exempt
+@login_required
+def finalize_election_results(request, election_id):
+    election = get_object_or_404(Election, id=election_id)
+    vote_counts = Vote.objects.filter(election=election, status='finalized').values('candidate__name').annotate(vote_count=Count('id')).order_by('-vote_count')
+    
+    winner = "N/A"
+    winning_votes = 0
+    if vote_counts:
+        winner = vote_counts[0]['candidate__name']
+        winning_votes = vote_counts[0]['vote_count']
+
+    return JsonResponse({'success': True, 'winner': winner, 'winning_votes': winning_votes})
+
+@csrf_exempt
+@login_required
+def verify_candidate(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        candidate_id = data.get('candidate_id')
+        candidate = get_object_or_404(Candidate, id=candidate_id)
+        candidate.is_verified = True
+        candidate.save()
+        return JsonResponse({'success': True, 'candidate_name': candidate.name})
+    return JsonResponse({'success': False, 'message': 'Invalid request'})
+    
+@require_GET
+@login_required
+def download_voters_list(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="voters_list.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Voter ID', 'Name', 'Email', 'State', 'City', 'Status'])
+    
+    voters = Voter.objects.all()
+    # Optional filtering can be added here based on GET params
+    
+    for voter in voters:
+        writer.writerow([
+            voter.voter_id,
+            voter.full_name,
+            voter.email,
+            voter.state,
+            voter.city,
+            voter.approval_status
+        ])
+        
+    return response
+
+# Placeholder views for real-time charts, returning random data for now
+def get_vote_queue_status(request):
+    import random
+    return JsonResponse({'success': True, 'queue_size': random.randint(0, 50)})
+
+def get_node_performance(request):
+    nodes = [
+        {'node_id': 'Node-1', 'response_time': random.randint(50, 150)},
+        {'node_id': 'Node-2', 'response_time': random.randint(50, 150)},
+        {'node_id': 'Node-3', 'response_time': random.randint(50, 150)},
+    ]
+    return JsonResponse({'success': True, 'nodes': nodes})
+
+def get_consensus_status(request):
+    processes = [
+        {'election_name': 'Trial Election', 'consensus_round': 1, 'progress': random.randint(10, 100), 'status': 'active'},
+    ]
+    return JsonResponse({'success': True, 'processes': processes})
+    
+# --- END OF NEW API VIEWS ---
 
 @csrf_exempt
 @login_required
@@ -1151,13 +1463,29 @@ def contact_page(request):
     return render(request, 'contact.html')
 
 def logout_user(request):
-    """User logout"""
+    """Enhanced user logout with session cleanup"""
     if request.user.is_authenticated:
-        create_audit_log('user_logout', user=request.user, details={'user_role': request.user.role}, request=request)
+        # Log the logout action
+        create_audit_log(
+            'user_logout',
+            user=request.user,
+            details={'user_role': request.user.role},
+            request=request
+        )
+
+        # Invalidate the voter session if the user is a voter
+        if request.user.role == 'voter':
+            try:
+                voter_session = VoterSession.objects.get(
+                    voter__user=request.user,
+                    session_key=request.session.session_key,
+                    is_active=True
+                )
+                voter_session.is_active = False
+                voter_session.save()
+            except VoterSession.DoesNotExist:
+                pass  # Session might have already expired or been invalidated
     
     logout(request)
     messages.success(request, 'You have been logged out successfully.')
     return redirect('landing')
-
-# Add your other admin functions (approve_voter, reject_voter, etc.) here
-# The structure is now clean and all functions are properly organized

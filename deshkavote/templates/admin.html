@@ -65,7 +65,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card text-white bg-warning">
+            <div class="card text-white bg-info">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
@@ -80,7 +80,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card text-white bg-warning">
+            <div class="card text-white bg-secondary">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
@@ -152,7 +152,12 @@
             
             <div class="row">
                 <div class="col-lg-8">
-                    <h4>Voter Approvals</h4>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4>Voter Approvals</h4>
+                        <button class="btn btn-outline-primary" onclick="showVotersListModal()">
+                            <i class="fa fa-download"></i> Download Voters List
+                        </button>
+                    </div>
                     
                     <ul class="nav nav-pills mb-3" id="voterStatusTabs">
                         <li class="nav-item">
@@ -326,30 +331,39 @@
                                     <th>State/Region</th>
                                     <th>Date Range</th>
                                     <th>Status</th>
-                                    <th>Consensus</th>
+                                    <th>Results</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for election in elections %}
-                                <tr>
+                                <tr data-election-id="{{ election.id }}">
                                     <td>{{ election.name }}</td>
                                     <td>{{ election.election_type }}</td>
                                     <td>{{ election.state }}{% if election.city %}, {{ election.city }}{% endif %}</td>
                                     <td>
                                         {{ election.start_date|date:"M d" }} - {{ election.end_date|date:"M d, Y" }}
                                     </td>
-                                    <td>
+                                    <td class="election-status">
                                         <span class="status-indicator status-{{ election.status }}"></span>
                                         {{ election.get_status_display }}
                                     </td>
+                                    
                                     <td>
-                                        <div class="consensus-progress">
-                                            <div class="consensus-bar"style="width: {{ election.consensus_width|default:"0" }}%"></div>
-                                        </div>
-                                        <small>{{ election.get_consensus_status_display }}</small>
+                                        {% if election.status == 'active' or election.status == 'completed' %}
+                                            {% if election.leading_candidate %}
+                                                <div class="small">
+                                                    <strong>{{ election.leading_candidate.name }}</strong> ({{ election.leading_candidate.party }})<br>
+                                                    <span class="text-muted">{{ election.leading_votes }} votes</span>
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted">No votes yet</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Not started</span>
+                                        {% endif %}
                                     </td>
-                                    <td>
+                                    <td class="election-actions">
                                         <div class="dropdown">
                                             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
                                                 Actions
@@ -360,6 +374,9 @@
                                                 </a></li>
                                                 <li><a class="dropdown-item" href="#" onclick="manageElection('{{ election.id }}')">
                                                     <i class="fas fa-cog"></i> Manage
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="showVotersListModal('{{ election.id }}')">
+                                                    <i class="fas fa-download"></i> Download Voters List
                                                 </a></li>
                                                 {% if election.status == 'upcoming' %}
                                                 <li><a class="dropdown-item" href="#" onclick="startElection('{{ election.id }}')">
@@ -391,6 +408,24 @@
                             <canvas id="electionChart" width="400" height="200"></canvas>
                         </div>
                     </div>
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">Recent Election Activity</h6>
+                        </div>
+                        <div class="card-body">
+                            {% for activity in recent_election_activity %}
+                                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <div>
+                                        <small class="fw-bold">{{ activity.election_name }}</small><br>
+                                        <small class="text-muted">{{ activity.activity }}</small>
+                                    </div>
+                                    <small class="text-muted">{{ activity.timestamp|timesince }} ago</small>
+                                </div>
+                            {% empty %}
+                                <p class="text-muted mb-0">No recent activity</p>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -412,13 +447,14 @@
                             <th>Constituency</th>
                             <th>Election</th>
                             <th>Symbol</th>
+                            <th>Votes</th>
                             <th>Verification</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for candidate in candidates %}
-                        <tr>
+                        <tr data-candidate-id="{{ candidate.id }}">
                             <td>{{ candidate.name }}</td>
                             <td>
                                 <span class="badge bg-secondary">{{ candidate.party }}</span>
@@ -427,6 +463,14 @@
                             <td>{{ candidate.election.name }}</td>
                             <td>{{ candidate.symbol }}</td>
                             <td>
+                                <span class="fw-bold">{{ candidate.vote_count|default:0}}</span>
+                                {% if candidate.election.status == 'active' or candidate.election.status == 'completed' %}
+                                    {% if candidate.vote_percentage %}
+                                        <small class="text-muted">({{ candidate.vote_percentage }}%)</small>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td class="candidate-verification">
                                 {% if candidate.is_verified %}
                                     <span class="badge bg-success">
                                         <i class="fas fa-check"></i> Verified
@@ -437,7 +481,7 @@
                                     </span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td class="candidate-actions">
                                 <div class="btn-group btn-group-sm">
                                     <button class="btn btn-outline-info" onclick="viewCandidate('{{ candidate.id }}')">
                                         <i class="fas fa-eye"></i>
@@ -455,7 +499,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center text-muted">No candidates added yet</td>
+                            <td colspan="8" class="text-center text-muted">No candidates added yet</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -508,6 +552,8 @@
                         <option value="voter_approved">Voter Approved</option>
                         <option value="voter_rejected">Voter Rejected</option>
                         <option value="election_created">Election Created</option>
+                        <option value="election_started">Election Started</option>
+                        <option value="election_ended">Election Ended</option>
                         <option value="admin_action">Admin Action</option>
                     </select>
                 </div>
